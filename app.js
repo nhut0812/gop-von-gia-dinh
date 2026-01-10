@@ -706,10 +706,16 @@ function updateContributeMemberSelect() {
 
 // Sửa tên thành viên
 function editMemberName(memberId) {
-    const member = appData.members.find(m => m.id === memberId);
-    if (!member) return;
+    console.log('editMemberName called with ID:', memberId, 'type:', typeof memberId);
+    const member = appData.members.find(m => m.id == memberId); // Dùng == để so sánh loose
+    console.log('Found member:', member);
+    if (!member) {
+        alert('Không tìm thấy thành viên!');
+        return;
+    }
     
     const newName = prompt('Nhập tên mới:', member.name);
+    console.log('New name entered:', newName);
     if (!newName || newName.trim() === '') return;
     
     const trimmedName = newName.trim();
