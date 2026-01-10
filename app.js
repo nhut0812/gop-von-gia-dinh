@@ -202,9 +202,9 @@ function renderMembers() {
     container.innerHTML = appData.members.map(member => `
         <div class="member-card">
             <button class="delete-btn" onclick="removeMember(${member.id})">×</button>
-            <h4 ondblclick="editMemberName(${member.id})" style="cursor: pointer;" title="Click để sửa tên">
-                ${member.name}
-                <button onclick="editMemberName(${member.id}); event.stopPropagation();" style="background: transparent; border: none; cursor: pointer; margin-left: 8px; font-size: 0.9em;" title="Sửa tên">✏️</button>
+            <h4>
+                <span style="cursor: pointer;" title="Click để sửa tên" onclick="editMemberName(${member.id})">${member.name}</span>
+                <button onclick="event.stopPropagation(); editMemberName(${member.id});" style="background: transparent; border: none; cursor: pointer; margin-left: 8px; font-size: 0.9em;" title="Sửa tên">✏️</button>
             </h4>
             <small>Tham gia: ${formatDate(member.joinDate)}</small>
         </div>
