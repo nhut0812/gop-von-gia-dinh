@@ -86,7 +86,24 @@ async function loadDataFromFirebase() {
         const doc = await db.collection('funds').doc(currentUserId).get();
         if (doc.exists) {
             const savedData = doc.data();
-            appData = savedData.data;
+            console.log('Raw Firebase data:', savedData);
+            
+            // Kiểm tra và xử lý cấu trúc dữ liệu
+            if (savedData && savedData.data) {
+                appData = savedData.data;
+            } else if (savedData && savedData.settings) {
+                // Dữ liệu cũ không có wrapper 'data'
+                appData = savedData;
+            } else {
+                console.warn('⚠️ Invalid data structure from Firebase');
+                return;
+            }
+            
+            // Đảm bảo appData có cấu trúc đúng
+            if (!appData.members) appData.members = [];
+            if (!appData.transactions) appData.transactions = [];
+            if (!appData.settings) appData.settings = { monthlyAmount: 200000 };
+            
             console.log('✅ Data loaded from Firebase');
             
             // Render giao diện sau khi load xong
