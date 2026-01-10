@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Quản Lý Góp Vốn Gia Đình</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Quản Lý Góp Vốn Gia Đình</h1>
+            <p class="subtitle">Theo dõi góp vốn hàng tháng và quản lý rút vốn</p>
+        </header>
+
+        <div class="settings-section">
+            <h2>⚙️ Cài Đặt</h2>
+            <div class="settings-form">
+                <label>
+                    Số tiền góp mỗi tháng:
+                    <input type="number" id="monthlyAmount" value="200000" min="0" step="1000">
+                    <span>VNĐ</span>
+                </label>
+                <button onclick="updateSettings()" class="btn btn-primary">Cập nhật</button>
+            </div>
+        </div>
+
+        <div class="members-section">
+            <h2>👥 Danh Sách Thành Viên</h2>
+            <div class="add-member-form">
+                <input type="text" id="newMemberName" placeholder="Tên thành viên mới">
+                <button onclick="addMember()" class="btn btn-success">Thêm Thành Viên</button>
+            </div>
+            <div id="membersList" class="members-list"></div>
+        </div>
+
+        <div class="actions-section">
+            <h2>📝 Ghi Nhận Giao Dịch</h2>
+            <div class="action-tabs">
+                <button class="tab-btn active" onclick="switchTab('contribute')">Góp Vốn</button>
+                <button class="tab-btn" onclick="switchTab('withdraw')">Rút Vốn</button>
+            </div>
+
+            <div id="contributeTab" class="tab-content active">
+                <h3>Ghi nhận góp vốn tháng</h3>
+                <div class="form-group">
+                    <label>Chọn tháng:</label>
+                    <input type="month" id="contributeMonth" class="input-field">
+                </div>
+                <button onclick="recordMonthlyContribution()" class="btn btn-primary">Ghi Nhận Góp Vốn Tháng Này</button>
+                <div class="info-box">
+                    <small>Sẽ tự động ghi nhận số tiền góp cho tất cả thành viên theo cài đặt</small>
+                </div>
+            </div>
+
+            <div id="withdrawTab" class="tab-content">
+                <h3>Ghi nhận rút vốn</h3>
+                <div class="form-group">
+                    <label>Chọn thành viên:</label>
+                    <select id="withdrawMember" class="input-field"></select>
+                </div>
+                <div class="form-group">
+                    <label>Số tiền rút:</label>
+                    <input type="number" id="withdrawAmount" class="input-field" min="0" step="1000" placeholder="Nhập số tiền">
+                    <span>VNĐ</span>
+                </div>
+                <div class="form-group">
+                    <label>Ngày rút:</label>
+                    <input type="date" id="withdrawDate" class="input-field">
+                </div>
+                <button onclick="recordWithdrawal()" class="btn btn-danger">Ghi Nhận Rút Vốn</button>
+            </div>
+        </div>
+
+        <div class="summary-section">
+            <h2>📊 Tổng Hợp Tình Hình</h2>
+            <div id="summaryTable"></div>
+        </div>
+
+        <div class="history-section">
+            <h2>📜 Lịch Sử Giao Dịch</h2>
+            <div class="filter-controls">
+                <select id="historyFilter" onchange="renderHistory()" class="input-field">
+                    <option value="all">Tất cả giao dịch</option>
+                    <option value="contribute">Góp vốn</option>
+                    <option value="withdraw">Rút vốn</option>
+                    <option value="repay">Trả nợ</option>
+                </select>
+                <select id="memberFilter" onchange="renderHistory()" class="input-field">
+                    <option value="all">Tất cả thành viên</option>
+                </select>
+            </div>
+            <div id="historyList"></div>
+        </div>
+
+        <div class="footer">
+            <button onclick="exportData()" class="btn btn-secondary">📥 Xuất Dữ Liệu</button>
+            <button onclick="importData()" class="btn btn-secondary">📤 Nhập Dữ Liệu</button>
+            <button onclick="resetData()" class="btn btn-warning">🔄 Reset Tất Cả</button>
+        </div>
+    </div>
+
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Firebase config (bạn sẽ tạo file này sau)
+firebase-config.js
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Backup files
+*.backup
+*.bak
