@@ -50,17 +50,21 @@
 
             <div id="contributeTab" class="tab-content active">
                 <h3>Ghi nhận góp vốn tháng</h3>
-                <div class="form-group">
-                    <label>Chọn thành viên:</label>
-                    <select id="contributeMember" class="input-field">
-                        <option value="all">Tất cả thành viên</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Chọn thành viên:</label>
+                        <select id="contributeMember" class="input-field">
+                            <option value="all">Tất cả thành viên</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Chọn tháng:</label>
+                        <input type="month" id="contributeMonth" class="input-field">
+                    </div>
+                    <div class="form-group" style="align-self: flex-end;">
+                        <button onclick="recordMonthlyContribution()" class="btn btn-primary" style="width: 100%;">Ghi Nhận Góp Vốn</button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Chọn tháng:</label>
-                    <input type="month" id="contributeMonth" class="input-field">
-                </div>
-                <button onclick="recordMonthlyContribution()" class="btn btn-primary">Ghi Nhận Góp Vốn Tháng Này</button>
                 <div class="info-box">
                     <small>Sẽ ghi nhận số tiền góp theo cài đặt (và trả nợ nếu có)</small>
                 </div>
@@ -68,20 +72,26 @@
 
             <div id="withdrawTab" class="tab-content">
                 <h3>Ghi nhận rút vốn</h3>
-                <div class="form-group">
-                    <label>Chọn thành viên:</label>
-                    <select id="withdrawMember" class="input-field"></select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Chọn thành viên:</label>
+                        <select id="withdrawMember" class="input-field"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Số tiền rút:</label>
+                        <div class="input-with-label">
+                            <input type="number" id="withdrawAmount" class="input-field" min="0" step="1000" placeholder="Nhập số tiền">
+                            <span class="unit-label">VNĐ</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ngày rút:</label>
+                        <input type="date" id="withdrawDate" class="input-field">
+                    </div>
+                    <div class="form-group" style="align-self: flex-end;">
+                        <button onclick="recordWithdrawal()" class="btn btn-danger" style="width: 100%;">Ghi Nhận Rút Vốn</button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Số tiền rút:</label>
-                    <input type="number" id="withdrawAmount" class="input-field" min="0" step="1000" placeholder="Nhập số tiền">
-                    <span>VNĐ</span>
-                </div>
-                <div class="form-group">
-                    <label>Ngày rút:</label>
-                    <input type="date" id="withdrawDate" class="input-field">
-                </div>
-                <button onclick="recordWithdrawal()" class="btn btn-danger">Ghi Nhận Rút Vốn</button>
             </div>
         </div>
 
