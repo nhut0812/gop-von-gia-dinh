@@ -49,6 +49,7 @@ async function initApp() {
         renderSummary();
         renderHistory();
         updateWithdrawMemberSelect();
+        updateContributeMemberSelect();
         updateMemberFilter();
     }
     
@@ -93,6 +94,7 @@ async function loadDataFromFirebase() {
             renderSummary();
             renderHistory();
             updateWithdrawMemberSelect();
+            updateContributeMemberSelect();
             updateMemberFilter();
         } else {
             console.log('ℹ️ No Firebase data found, starting fresh');
@@ -162,6 +164,7 @@ function addMember() {
     saveData();
     renderMembers();
     updateWithdrawMemberSelect();
+    updateContributeMemberSelect();
     updateMemberFilter();
     renderSummary();
     showNotification(`Đã thêm thành viên ${name}!`, 'success');
@@ -181,6 +184,7 @@ function removeMember(memberId) {
     saveData();
     renderMembers();
     updateWithdrawMemberSelect();
+    updateContributeMemberSelect();
     updateMemberFilter();
     renderSummary();
     renderHistory();
@@ -198,7 +202,7 @@ function renderMembers() {
     container.innerHTML = appData.members.map(member => `
         <div class="member-card">
             <button class="delete-btn" onclick="removeMember(${member.id})">×</button>
-            <h4>${member.name}</h4>
+            <h4 ondblclick="editMemberName(${member.id})" style="cursor: pointer;" title="Double-click để sửa tên">${member.name}</h4>
             <small>Tham gia: ${formatDate(member.joinDate)}</small>
         </div>
     `).join('');
@@ -216,6 +220,7 @@ function switchTab(tabName) {
 // Ghi nhận góp vốn tháng
 function recordMonthlyContribution() {
     const monthInput = document.getElementById('contributeMonth').value;
+    const selectedMemberId = document.getElementById('contributeMember').value;
     
     if (!monthInput) {
         showNotification('Vui lòng chọn tháng!', 'error');
@@ -227,23 +232,40 @@ function recordMonthlyContribution() {
         return;
     }
     
-    // Kiểm tra xem tháng này đã được ghi nhận chưa
+    // Lọc danh sách thành viên cần ghi nhận
+    let membersToProcess = [];
+    if (selectedMemberId === 'all') {
+        membersToProcess = appData.members;
+    } else {
+        const member = appData.members.find(m => m.id == selectedMemberId);
+        if (member) membersToProcess = [member];
+    }
+    
+    if (membersToProcess.length === 0) {
+        showNotification('Không tìm thấy thành viên!', 'error');
+        return;
+    }
+    
+    // Kiểm tra xem tháng này đã được ghi nhận chưa (cho từng người)
     const existingContributions = appData.transactions.filter(t => 
-        t.type === 'contribute' && t.month === monthInput
+        t.type === 'contribute' && t.month === monthInput && 
+        membersToProcess.some(m => m.id === t.memberId)
     );
     
     if (existingContributions.length > 0) {
-        if (!confirm(`Tháng ${monthInput} đã có ghi nhận góp vốn. Bạn có muốn ghi nhận lại?`)) {
+        const names = [...new Set(existingContributions.map(t => t.memberName))].join(', ');
+        if (!confirm(`Tháng ${monthInput} đã có ghi nhận góp vốn cho: ${names}. Bạn có muốn ghi nhận lại?`)) {
             return;
         }
-        // Xóa các ghi nhận góp vốn và trả nợ cũ của tháng này
+        // Xóa các ghi nhận góp vốn và trả nợ cũ của tháng này (cho những người được chọn)
         appData.transactions = appData.transactions.filter(t => 
-            !((t.type === 'contribute' || t.type === 'repay') && t.month === monthInput)
+            !((t.type === 'contribute' || t.type === 'repay') && t.month === monthInput && 
+              membersToProcess.some(m => m.id === t.memberId))
         );
     }
     
-    // Tạo giao dịch góp vốn cho tất cả thành viên
-    appData.members.forEach(member => {
+    // Tạo giao dịch góp vốn cho các thành viên được chọn
+    membersToProcess.forEach(member => {
         // Giao dịch góp vốn cơ bản (luôn luôn có)
         appData.transactions.push({
             id: Date.now() + Math.random(),
@@ -277,7 +299,7 @@ function recordMonthlyContribution() {
     saveData();
     renderSummary();
     renderHistory();
-    showNotification(`Đã ghi nhận góp vốn tháng ${monthInput} cho ${appData.members.length} thành viên!`, 'success');
+    showNotification(`Đã ghi nhận góp vốn tháng ${monthInput} cho ${membersToProcess.length} thành viên!`, 'success');
 }
 
 // Tính số tiền phải trả nợ thêm trong tháng
@@ -670,6 +692,44 @@ function updateWithdrawMemberSelect() {
     const select = document.getElementById('withdrawMember');
     select.innerHTML = '<option value="">-- Chọn thành viên --</option>' + 
         appData.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+}
+
+// Cập nhật dropdown chọn thành viên cho góp vốn
+function updateContributeMemberSelect() {
+    const select = document.getElementById('contributeMember');
+    select.innerHTML = '<option value="all">Tất cả thành viên</option>' + 
+        appData.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+}
+
+// Sửa tên thành viên
+function editMemberName(memberId) {
+    const member = appData.members.find(m => m.id === memberId);
+    if (!member) return;
+    
+    const newName = prompt('Nhập tên mới:', member.name);
+    if (!newName || newName.trim() === '') return;
+    
+    const trimmedName = newName.trim();
+    if (trimmedName === member.name) return;
+    
+    // Cập nhật tên trong danh sách thành viên
+    member.name = trimmedName;
+    
+    // Cập nhật tên trong tất cả giao dịch
+    appData.transactions.forEach(t => {
+        if (t.memberId === memberId) {
+            t.memberName = trimmedName;
+        }
+    });
+    
+    saveData();
+    renderMembers();
+    updateWithdrawMemberSelect();
+    updateContributeMemberSelect();
+    updateMemberFilter();
+    renderSummary();
+    renderHistory();
+    showNotification('Đã cập nhật tên thành viên!', 'success');
 }
 
 // Cập nhật dropdown lọc thành viên trong lịch sử

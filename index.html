@@ -51,12 +51,18 @@
             <div id="contributeTab" class="tab-content active">
                 <h3>Ghi nhận góp vốn tháng</h3>
                 <div class="form-group">
+                    <label>Chọn thành viên:</label>
+                    <select id="contributeMember" class="input-field">
+                        <option value="all">Tất cả thành viên</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>Chọn tháng:</label>
                     <input type="month" id="contributeMonth" class="input-field">
                 </div>
                 <button onclick="recordMonthlyContribution()" class="btn btn-primary">Ghi Nhận Góp Vốn Tháng Này</button>
                 <div class="info-box">
-                    <small>Sẽ tự động ghi nhận số tiền góp cho tất cả thành viên theo cài đặt</small>
+                    <small>Sẽ ghi nhận số tiền góp theo cài đặt (và trả nợ nếu có)</small>
                 </div>
             </div>
 
@@ -100,11 +106,6 @@
             <div id="historyList"></div>
         </div>
 
-        <div class="footer">
-            <button onclick="exportData()" class="btn btn-secondary">📥 Xuất Dữ Liệu</button>
-            <button onclick="importData()" class="btn btn-secondary">📤 Nhập Dữ Liệu</button>
-            <button onclick="resetData()" class="btn btn-warning">🔄 Reset Tất Cả</button>
-        </div>
     </div>
 
     <script src="firebase-config.js"></script>
