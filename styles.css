@@ -44,6 +44,13 @@ header {
     overflow: hidden;
 }
 
+.auth-controls {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    z-index: 100;
+}
+
 header::before {
     content: '';
     position: absolute;

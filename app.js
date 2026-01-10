@@ -7,6 +7,10 @@ let appData = {
     transactions: []
 };
 
+// Authentication
+const ADMIN_PASSWORD = '123456'; // Thay đổi mật khẩu này
+let isAuthenticated = false;
+
 // Firebase
 let db = null;
 let currentUserId = 'family-fund'; // ID cố định cho gia đình
@@ -32,6 +36,9 @@ function initFirebase() {
 
 // Khởi tạo ứng dụng
 async function initApp() {
+    // Kiểm tra trạng thái đăng nhập
+    checkAuthStatus();
+    
     const useFirebase = initFirebase();
     
     // Set ngày mặc định
@@ -54,6 +61,7 @@ async function initApp() {
     }
     
     updateSettings();
+    updateUIBasedOnAuth();
 }
 
 // Lưu và tải dữ liệu từ Firebase
@@ -150,14 +158,21 @@ function loadData() {
 
 // Cài đặt
 function updateSettings() {
+    // Chỉ kiểm tra auth khi được gọi từ button click (có event)
+    if (typeof event !== 'undefined' && !requireAuth()) return;
+    
     const monthlyAmount = parseInt(document.getElementById('monthlyAmount').value);
     appData.settings.monthlyAmount = monthlyAmount;
-    saveData();
-    showNotification('Đã cập nhật cài đặt!', 'success');
+    if (typeof event !== 'undefined') {
+        saveData();
+        showNotification('Đã cập nhật cài đặt!', 'success');
+    }
 }
 
 // Quản lý thành viên
 function addMember() {
+    if (!requireAuth()) return;
+    
     const nameInput = document.getElementById('newMemberName');
     const name = nameInput.value.trim();
     
@@ -188,6 +203,8 @@ function addMember() {
 }
 
 function removeMember(memberId) {
+    if (!requireAuth()) return;
+    
     const member = appData.members.find(m => m.id === memberId);
     if (!member) return;
     
@@ -237,6 +254,8 @@ function switchTab(tabName) {
 
 // Ghi nhận góp vốn tháng
 function recordMonthlyContribution() {
+    if (!requireAuth()) return;
+    
     const monthInput = document.getElementById('contributeMonth').value;
     const selectedMemberId = document.getElementById('contributeMember').value;
     
@@ -355,6 +374,8 @@ function calculateDebt(memberId, currentMonth) {
 
 // Ghi nhận rút vốn
 function recordWithdrawal() {
+    if (!requireAuth()) return;
+    
     const memberId = parseInt(document.getElementById('withdrawMember').value);
     const amount = parseInt(document.getElementById('withdrawAmount').value);
     const date = document.getElementById('withdrawDate').value;
@@ -721,6 +742,8 @@ function updateContributeMemberSelect() {
 
 // Sửa tên thành viên
 function editMemberName(memberId) {
+    if (!requireAuth()) return;
+    
     console.log('editMemberName called with ID:', memberId, 'type:', typeof memberId);
     const member = appData.members.find(m => m.id == memberId); // Dùng == để so sánh loose
     console.log('Found member:', member);
@@ -888,6 +911,80 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Authentication Functions
+function checkAuthStatus() {
+    const savedAuth = localStorage.getItem('isAuthenticated');
+    if (savedAuth === 'true') {
+        isAuthenticated = true;
+    }
+}
+
+function showLoginDialog() {
+    const password = prompt('Nhập mật khẩu để chỉnh sửa:');
+    if (password === ADMIN_PASSWORD) {
+        isAuthenticated = true;
+        localStorage.setItem('isAuthenticated', 'true');
+        updateUIBasedOnAuth();
+        showNotification('Đăng nhập thành công! Bạn có thể chỉnh sửa.', 'success');
+    } else if (password !== null) {
+        showNotification('Mật khẩu không đúng!', 'error');
+    }
+}
+
+function logout() {
+    isAuthenticated = false;
+    localStorage.removeItem('isAuthenticated');
+    updateUIBasedOnAuth();
+    showNotification('Đã đăng xuất! Bạn chỉ có thể xem.', 'info');
+}
+
+function updateUIBasedOnAuth() {
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    
+    if (isAuthenticated) {
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'inline-block';
+    } else {
+        loginBtn.style.display = 'inline-block';
+        logoutBtn.style.display = 'none';
+    }
+    
+    // Ẩn/hiện các phần chỉnh sửa
+    const editableSections = [
+        '.settings-section',
+        '.members-section .add-member-form',
+        '.actions-section',
+        '.member-card .delete-btn',
+        '.member-card .edit-btn'
+    ];
+    
+    editableSections.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+            if (isAuthenticated) {
+                el.style.display = '';
+                el.style.pointerEvents = 'auto';
+                el.style.opacity = '1';
+            } else {
+                if (selector === '.settings-section' || selector === '.actions-section' || selector === '.members-section .add-member-form') {
+                    el.style.display = 'none';
+                } else {
+                    el.style.display = 'none';
+                }
+            }
+        });
+    });
+}
+
+function requireAuth(action) {
+    if (!isAuthenticated) {
+        showNotification('Vui lòng đăng nhập để thực hiện chỉnh sửa!', 'error');
+        return false;
+    }
+    return true;
+}
 
 // Khởi chạy ứng dụng khi trang load xong
 window.addEventListener('DOMContentLoaded', initApp);
