@@ -31,26 +31,27 @@ function initFirebase() {
 }
 
 // Khởi tạo ứng dụng
-function initApp() {
+async function initApp() {
     const useFirebase = initFirebase();
-    
-    if (useFirebase) {
-        loadDataFromFirebase();
-    } else {
-        loadDataFromLocalStorage();
-    }
     
     // Set ngày mặc định
     const today = new Date();
     document.getElementById('contributeMonth').value = today.toISOString().slice(0, 7);
     document.getElementById('withdrawDate').value = today.toISOString().slice(0, 10);
     
-    // Render giao diện
-    renderMembers();
-    renderSummary();
-    renderHistory();
-    updateWithdrawMemberSelect();
-    updateMemberFilter();
+    // Load dữ liệu từ Firebase trước
+    if (useFirebase) {
+        await loadDataFromFirebase();
+    } else {
+        loadDataFromLocalStorage();
+        // Render giao diện nếu dùng localStorage
+        renderMembers();
+        renderSummary();
+        renderHistory();
+        updateWithdrawMemberSelect();
+        updateMemberFilter();
+    }
+    
     updateSettings();
 }
 
