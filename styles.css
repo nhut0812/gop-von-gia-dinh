@@ -38,7 +38,7 @@ body {
 header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 50px 40px;
+    padding: 25px 20px;
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -61,8 +61,8 @@ header::before {
 }
 
 header h1 {
-    font-size: 2.8em;
-    margin-bottom: 10px;
+    font-size: 1.8em;
+    margin-bottom: 8px;
     text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
     position: relative;
     z-index: 1;
@@ -83,7 +83,7 @@ header h1 {
 }
 
 .subtitle {
-    font-size: 1.2em;
+    font-size: 0.95em;
     opacity: 0.95;
     position: relative;
     z-index: 1;
@@ -94,10 +94,10 @@ header h1 {
 .actions-section,
 .summary-section,
 .history-section {
-    padding: 35px 45px;
+    padding: 15px 20px;
     background: white;
-    margin: 20px;
-    border-radius: 20px;
+    margin: 10px;
+    border-radius: 15px;
     box-shadow: 0 5px 20px rgba(0,0,0,0.08);
     transition: transform 0.3s, box-shadow 0.3s;
 }
@@ -351,10 +351,10 @@ h3 {
 
 /* Buttons */
 .btn {
-    padding: 14px 28px;
+    padding: 10px 20px;
     border: none;
-    border-radius: 12px;
-    font-size: 1.05em;
+    border-radius: 10px;
+    font-size: 0.9em;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -580,7 +580,7 @@ h3 {
 .fund-card {
     background: white;
     border-radius: 20px;
-    padding: 30px;
+    padding: 15px;
     box-shadow: 0 8px 30px rgba(0,0,0,0.12);
     text-align: center;
     transition: all 0.4s ease;
@@ -625,8 +625,8 @@ h3 {
 }
 
 .fund-icon {
-    font-size: 3.5em;
-    margin-bottom: 15px;
+    font-size: 2em;
+    margin-bottom: 8px;
     animation: bounce 2s ease-in-out infinite;
 }
 
@@ -645,10 +645,10 @@ h3 {
 }
 
 .fund-amount {
-    font-size: 2.3em;
+    font-size: 1.5em;
     font-weight: 800;
     color: #333;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
 }
 
@@ -905,8 +905,10 @@ thead {
 }
 
 th, td {
-    padding: 15px;
+    padding: 4px 6px;
     text-align: left;
+    font-size: 0.8em;
+    line-height: 1.2;
 }
 
 th {
@@ -1030,8 +1032,23 @@ tbody tr:last-child {
 }
 
 #historyList {
-    max-height: none;
+    max-height: 400px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#historyList::-webkit-scrollbar {
+    width: 8px;
+}
+
+#historyList::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+#historyList::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 10px;
 }
 
 @media (max-width: 768px) {
