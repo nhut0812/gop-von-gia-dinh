@@ -516,30 +516,6 @@ function renderSummary() {
     const debtRemaining = Math.max(0, totalWithdrawn - totalRepaid);
     const actualMoney = totalContributed - debtRemaining;
     
-    // Hiển thị tổng tiền và tiền thực tế
-    let summaryHTML = `
-        <div class="fund-summary">
-            <div class="fund-card total-contributed">
-                <div class="fund-icon">💰</div>
-                <div class="fund-label">Tổng Tiền Đã Góp</div>
-                <div class="fund-amount">${formatMoney(totalContributed)}</div>
-                <div class="fund-note">Tổng góp vốn qua các tháng</div>
-            </div>
-            <div class="fund-card total-withdrawn">
-                <div class="fund-icon">💸</div>
-                <div class="fund-label">Tổng Tiền Đã Rút</div>
-                <div class="fund-amount">${debtRemaining > 0 ? formatMoney(debtRemaining) : '0 ₫'}</div>
-                <div class="fund-note">${debtRemaining > 0 ? 'Còn nợ chưa trả' : 'Đã trả hết nợ'}</div>
-            </div>
-            <div class="fund-card actual-money">
-                <div class="fund-icon">🏦</div>
-                <div class="fund-label">Tiền Thực Tế Trong Quỹ</div>
-                <div class="fund-amount">${formatMoney(actualMoney)}</div>
-                <div class="fund-note">Tiền còn lại sau khi trừ rút</div>
-            </div>
-        </div>
-    `;
-    
     // Tạo header của bảng
     let tableHTML = `
         <div class="summary-table-wrapper">
@@ -666,7 +642,7 @@ function renderSummary() {
         </div>
     `;
     
-    container.innerHTML = summaryHTML + tableHTML;
+    container.innerHTML = tableHTML;
 }
 
 // Render lịch sử giao dịch
@@ -994,113 +970,51 @@ function requireAuth(action) {
     return true;
 }
 
-// Dashboard Functions
+// Dashboard Functions - Display Fund Summary
 function renderDashboard() {
     const container = document.getElementById('dashboardCards');
     if (!container) return;
     
-    // Tính toán thống kê
-    const stats = calculateDashboardStats();
+    // Tính tổng tiền đã góp và tiền thực tế
+    const totalContributed = appData.transactions
+        .filter(t => t.type === 'contribute')
+        .reduce((sum, t) => sum + t.amount, 0);
     
+    const totalWithdrawn = appData.transactions
+        .filter(t => t.type === 'withdraw')
+        .reduce((sum, t) => sum + t.amount, 0);
+    
+    const totalRepaid = appData.transactions
+        .filter(t => t.type === 'repay')
+        .reduce((sum, t) => sum + t.amount, 0);
+    
+    const debtRemaining = Math.max(0, totalWithdrawn - totalRepaid);
+    const actualMoney = totalContributed - debtRemaining;
+    
+    // Hiển thị 3 cards tổng tiền
     container.innerHTML = `
-        <div class="dashboard-card card-primary">
-            <div class="card-icon">👑</div>
-            <div class="card-content">
-                <div class="card-label">Đóng Góp Nhiều Nhất</div>
-                <div class="card-value">${stats.topContributor.name}</div>
-                <div class="card-detail">${formatMoney(stats.topContributor.amount)}</div>
-            </div>
+        <div class="fund-card total-contributed">
+            <div class="fund-icon">💰</div>
+            <div class="fund-label">Tổng Tiền Đã Góp</div>
+            <div class="fund-amount">${formatMoney(totalContributed)}</div>
+            <div class="fund-note">Tổng góp vốn qua các tháng</div>
         </div>
-        <div class="dashboard-card card-warning">
-            <div class="card-icon">⚠️</div>
-            <div class="card-content">
-                <div class="card-label">Nợ Nhiều Nhất</div>
-                <div class="card-value">${stats.topDebtor.name}</div>
-                <div class="card-detail">${formatMoney(stats.topDebtor.debt)}</div>
-            </div>
+        <div class="fund-card total-withdrawn">
+            <div class="fund-icon">💸</div>
+            <div class="fund-label">Tổng Tiền Đã Rút</div>
+            <div class="fund-amount">${debtRemaining > 0 ? formatMoney(debtRemaining) : '0 ₫'}</div>
+            <div class="fund-note">${debtRemaining > 0 ? 'Còn nợ chưa trả' : 'Đã trả hết nợ'}</div>
         </div>
-        <div class="dashboard-card card-success">
-            <div class="card-icon">✅</div>
-            <div class="card-content">
-                <div class="card-label">Đã Trả Nợ Nhiều Nhất</div>
-                <div class="card-value">${stats.topRepayer.name}</div>
-                <div class="card-detail">${formatMoney(stats.topRepayer.amount)}</div>
-            </div>
-        </div>
-        <div class="dashboard-card card-info">
-            <div class="card-icon">📅</div>
-            <div class="card-content">
-                <div class="card-label">Giao Dịch Gần Nhất</div>
-                <div class="card-value">${stats.lastTransaction.type}</div>
-                <div class="card-detail">${stats.lastTransaction.date}</div>
-            </div>
+        <div class="fund-card actual-money">
+            <div class="fund-icon">🏦</div>
+            <div class="fund-label">Tiền Thực Tế Trong Quỹ</div>
+            <div class="fund-amount">${formatMoney(actualMoney)}</div>
+            <div class="fund-note">Tiền còn lại sau khi trừ rút</div>
         </div>
     `;
 }
 
-function calculateDashboardStats() {
-    const memberStats = appData.members.map(member => {
-        const contributed = appData.transactions
-            .filter(t => t.memberId === member.id && (t.type === 'contribute' || t.type === 'repay'))
-            .reduce((sum, t) => sum + t.amount, 0);
-        
-        const withdrawn = appData.transactions
-            .filter(t => t.memberId === member.id && t.type === 'withdraw')
-            .reduce((sum, t) => sum + t.amount, 0);
-        
-        const repaid = appData.transactions
-            .filter(t => t.memberId === member.id && t.type === 'repay')
-            .reduce((sum, t) => sum + t.amount, 0);
-        
-        return {
-            name: member.name,
-            contributed,
-            withdrawn,
-            repaid,
-            debt: Math.max(0, withdrawn - repaid)
-        };
-    });
-    
-    const topContributor = memberStats.reduce((max, m) => 
-        m.contributed > max.amount ? { name: m.name, amount: m.contributed } : max,
-        { name: 'Chưa có', amount: 0 }
-    );
-    
-    const topDebtor = memberStats.reduce((max, m) => 
-        m.debt > max.debt ? { name: m.name, debt: m.debt } : max,
-        { name: 'Không có', debt: 0 }
-    );
-    
-    const topRepayer = memberStats.reduce((max, m) => 
-        m.repaid > max.amount ? { name: m.name, amount: m.repaid } : max,
-        { name: 'Chưa có', amount: 0 }
-    );
-    
-    const lastTx = appData.transactions.length > 0 
-        ? appData.transactions[appData.transactions.length - 1]
-        : null;
-    
-    const typeNames = {
-        contribute: 'Góp vốn',
-        withdraw: 'Rút vốn',
-        repay: 'Trả nợ'
-    };
-    
-    return {
-        topContributor,
-        topDebtor,
-        topRepayer,
-        lastTransaction: lastTx ? {
-            type: typeNames[lastTx.type] || lastTx.type,
-            date: formatDate(lastTx.date)
-        } : {
-            type: 'Chưa có',
-            date: ''
-        }
-    };
-}
-
-// Export to Excel
+// Export to Excel with Beautiful Formatting
 function exportToExcel() {
     if (!window.XLSX) {
         showNotification('Đang tải thư viện Excel...', 'info');
@@ -1110,9 +1024,60 @@ function exportToExcel() {
     // Tạo workbook
     const wb = XLSX.utils.book_new();
     
-    // Sheet 1: Thông tin thành viên
+    // Tính tổng cho summary
+    const totalContributed = appData.transactions
+        .filter(t => t.type === 'contribute')
+        .reduce((sum, t) => sum + t.amount, 0);
+    const totalWithdrawn = appData.transactions
+        .filter(t => t.type === 'withdraw')
+        .reduce((sum, t) => sum + t.amount, 0);
+    const totalRepaid = appData.transactions
+        .filter(t => t.type === 'repay')
+        .reduce((sum, t) => sum + t.amount, 0);
+    const debtRemaining = Math.max(0, totalWithdrawn - totalRepaid);
+    const actualBalance = totalContributed - debtRemaining;
+    
+    // === SHEET 1: TỔNG QUAN ===
+    const summaryData = [
+        ['BÁO CÁO QUỸ GIA ĐÌNH'],
+        [`Ngày xuất: ${formatDate(new Date().toISOString())}`],
+        [],
+        ['TỔNG QUAN TÀI CHÍNH'],
+        ['Chỉ Tiêu', 'Số Tiền (VNĐ)'],
+        ['💰 Tổng Tiền Đã Góp', totalContributed],
+        ['💸 Tổng Tiền Đã Rút', totalWithdrawn],
+        ['💰 Tổng Đã Trả Nợ', totalRepaid],
+        ['⚠️ Nợ Còn Lại', debtRemaining],
+        ['✅ Số Dư Thực Tế', actualBalance],
+        [],
+        ['THÔNG TIN CHUNG'],
+        ['Số thành viên', appData.members.length],
+        ['Tổng số giao dịch', appData.transactions.length],
+    ];
+    
+    const ws0 = XLSX.utils.aoa_to_sheet(summaryData);
+    
+    // Định dạng độ rộng cột
+    ws0['!cols'] = [
+        { wch: 25 },
+        { wch: 20 }
+    ];
+    
+    // Merge cells cho tiêu đề
+    ws0['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }, // Tiêu đề chính
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }, // Ngày
+        { s: { r: 3, c: 0 }, e: { r: 3, c: 1 } }, // Tổng quan
+        { s: { r: 11, c: 0 }, e: { r: 11, c: 1 } }  // Thông tin chung
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, ws0, 'Tổng Quan');
+    
+    // === SHEET 2: THÀNH VIÊN ===
     const membersData = [
-        ['STT', 'Tên', 'Ngày Tham Gia', 'Tổng Góp', 'Tổng Rút', 'Tổng Trả Nợ', 'Còn Nợ'],
+        ['DANH SÁCH THÀNH VIÊN'],
+        [],
+        ['STT', 'Tên', 'Ngày Tham Gia', 'Tổng Góp (VNĐ)', 'Tổng Rút (VNĐ)', 'Tổng Trả Nợ (VNĐ)', 'Còn Nợ (VNĐ)'],
         ...appData.members.map((member, idx) => {
             const contributed = appData.transactions
                 .filter(t => t.memberId === member.id && t.type === 'contribute')
@@ -1137,13 +1102,57 @@ function exportToExcel() {
                 repaid,
                 debt
             ];
-        })
+        }),
+        [],
+        ['TỔNG CỘNG', '', '', 
+            appData.members.reduce((sum, m) => {
+                return sum + appData.transactions
+                    .filter(t => t.memberId === m.id && t.type === 'contribute')
+                    .reduce((s, t) => s + t.amount, 0);
+            }, 0),
+            appData.members.reduce((sum, m) => {
+                return sum + appData.transactions
+                    .filter(t => t.memberId === m.id && t.type === 'withdraw')
+                    .reduce((s, t) => s + t.amount, 0);
+            }, 0),
+            appData.members.reduce((sum, m) => {
+                return sum + appData.transactions
+                    .filter(t => t.memberId === m.id && t.type === 'repay')
+                    .reduce((s, t) => s + t.amount, 0);
+            }, 0),
+            appData.members.reduce((sum, m) => {
+                const withdrawn = appData.transactions
+                    .filter(t => t.memberId === m.id && t.type === 'withdraw')
+                    .reduce((s, t) => s + t.amount, 0);
+                const repaid = appData.transactions
+                    .filter(t => t.memberId === m.id && t.type === 'repay')
+                    .reduce((s, t) => s + t.amount, 0);
+                return sum + Math.max(0, withdrawn - repaid);
+            }, 0)
+        ]
     ];
     
     const ws1 = XLSX.utils.aoa_to_sheet(membersData);
+    
+    // Định dạng độ rộng cột
+    ws1['!cols'] = [
+        { wch: 6 },   // STT
+        { wch: 20 },  // Tên
+        { wch: 15 },  // Ngày
+        { wch: 18 },  // Tổng góp
+        { wch: 18 },  // Tổng rút
+        { wch: 18 },  // Trả nợ
+        { wch: 18 }   // Còn nợ
+    ];
+    
+    // Merge cell cho tiêu đề
+    ws1['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }
+    ];
+    
     XLSX.utils.book_append_sheet(wb, ws1, 'Thành Viên');
     
-    // Sheet 2: Lịch sử giao dịch
+    // === SHEET 3: LỊCH SỬ GIAO DỊCH ===
     const typeNames = {
         contribute: 'Góp vốn',
         withdraw: 'Rút vốn',
@@ -1151,7 +1160,9 @@ function exportToExcel() {
     };
     
     const txData = [
-        ['STT', 'Ngày', 'Thành Viên', 'Loại', 'Số Tiền', 'Ghi Chú'],
+        ['LỊCH SỬ GIAO DỊCH'],
+        [],
+        ['STT', 'Ngày', 'Thành Viên', 'Loại', 'Số Tiền (VNĐ)', 'Ghi Chú'],
         ...appData.transactions.map((tx, idx) => [
             idx + 1,
             formatDate(tx.date),
@@ -1159,21 +1170,139 @@ function exportToExcel() {
             typeNames[tx.type] || tx.type,
             tx.amount,
             tx.note || ''
-        ])
+        ]),
+        [],
+        ['TỔNG GIAO DỊCH', appData.transactions.length, '', 
+            'Tổng tiền:', 
+            appData.transactions.reduce((sum, t) => sum + t.amount, 0),
+            ''
+        ]
     ];
     
     const ws2 = XLSX.utils.aoa_to_sheet(txData);
+    
+    // Định dạng độ rộng cột
+    ws2['!cols'] = [
+        { wch: 6 },   // STT
+        { wch: 12 },  // Ngày
+        { wch: 20 },  // Thành viên
+        { wch: 12 },  // Loại
+        { wch: 18 },  // Số tiền
+        { wch: 40 }   // Ghi chú
+    ];
+    
+    // Merge cell cho tiêu đề
+    ws2['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }
+    ];
+    
     XLSX.utils.book_append_sheet(wb, ws2, 'Giao Dịch');
     
     // Xuất file
     const fileName = `BaoCaoGopVon_${new Date().toISOString().slice(0, 10)}.xlsx`;
     XLSX.writeFile(wb, fileName);
     
-    showNotification('Đã xuất báo cáo Excel!', 'success');
+    showNotification('✅ Đã xuất báo cáo Excel với định dạng đẹp!', 'success');
 }
 
 // Print PDF
 function printReport() {
+    // Set print date and time
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('vi-VN', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+    const timeStr = now.toLocaleTimeString('vi-VN');
+    
+    document.getElementById('printDate').textContent = dateStr;
+    document.getElementById('printDateTime').textContent = `${dateStr} lúc ${timeStr}`;
+    document.getElementById('printMemberCount').textContent = appData.members.length + ' người';
+    document.getElementById('printTransactionCount').textContent = appData.transactions.length + ' giao dịch';
+    
+    // Calculate totals
+    const totalContributed = appData.transactions
+        .filter(t => t.type === 'contribute')
+        .reduce((sum, t) => sum + t.amount, 0);
+    
+    const totalWithdrawn = appData.transactions
+        .filter(t => t.type === 'withdraw')
+        .reduce((sum, t) => sum + t.amount, 0);
+    
+    const totalRepaid = appData.transactions
+        .filter(t => t.type === 'repay')
+        .reduce((sum, t) => sum + t.amount, 0);
+    
+    const totalDebt = appData.members.reduce((sum, m) => sum + m.debt, 0);
+    const actualBalance = totalContributed - totalWithdrawn + totalRepaid;
+    
+    // Create summary grid
+    const summaryData = [
+        { icon: '💵', label: 'Tổng Góp Vốn', value: totalContributed, color: '#4CAF50' },
+        { icon: '💸', label: 'Tổng Rút Vốn', value: totalWithdrawn, color: '#f44336' },
+        { icon: '💰', label: 'Tiền Trả Nợ', value: totalRepaid, color: '#2196F3' },
+        { icon: '⚠️', label: 'Nợ Còn Lại', value: totalDebt, color: '#FF9800' },
+        { icon: '✅', label: 'Số Dư Thực Tế', value: actualBalance, color: '#009688' }
+    ];
+    
+    let summaryHtml = summaryData.map(item => `
+        <div class="summary-card" style="border-left: 4px solid ${item.color}">
+            <div class="summary-icon">${item.icon}</div>
+            <div class="summary-content">
+                <div class="summary-label">${item.label}</div>
+                <div class="summary-value" style="color: ${item.color}">${formatMoney(item.value)} VNĐ</div>
+            </div>
+        </div>
+    `).join('');
+    
+    document.getElementById('printSummaryGrid').innerHTML = summaryHtml;
+    
+    // Create member details
+    let memberHtml = appData.members.map((m, idx) => {
+        const contributed = appData.transactions
+            .filter(t => t.type === 'contribute' && t.memberId === m.id)
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        const withdrawn = appData.transactions
+            .filter(t => t.type === 'withdraw' && t.memberId === m.id)
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        const repaid = appData.transactions
+            .filter(t => t.type === 'repay' && t.memberId === m.id)
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        return `
+            <div class="member-detail-card">
+                <div class="member-number">${idx + 1}</div>
+                <div class="member-info">
+                    <div class="member-name">${m.name}</div>
+                    <div class="member-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Đã góp:</span>
+                            <span class="stat-value positive">${formatMoney(contributed)} VNĐ</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Đã rút:</span>
+                            <span class="stat-value negative">${formatMoney(withdrawn)} VNĐ</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Đã trả nợ:</span>
+                            <span class="stat-value info">${formatMoney(repaid)} VNĐ</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Nợ còn:</span>
+                            <span class="stat-value ${m.debt > 0 ? 'warning' : 'success'}">${formatMoney(m.debt)} VNĐ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    document.getElementById('printMemberDetails').innerHTML = memberHtml;
+    
+    // Trigger print
     window.print();
     showNotification('Đang chuẩn bị in...', 'info');
 }

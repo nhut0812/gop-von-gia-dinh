@@ -118,7 +118,62 @@
                 <button onclick="exportToExcel()" class="btn btn-success" style="padding: 8px 16px; font-size: 0.9em;">📥 Xuất Excel</button>
                 <button onclick="printReport()" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.9em;">🖨️ In PDF</button>
             </div>
+            
+            <!-- Print Header (only visible when printing) -->
+            <div class="print-header">
+                <div class="print-company-header">
+                    <div class="print-logo">💰</div>
+                    <h1>BÁO CÁO QUỸ GIA ĐÌNH</h1>
+                    <p class="print-subtitle">Tổng hợp góp vốn và rút vốn theo tháng</p>
+                </div>
+                <div class="print-info-bar">
+                    <div class="info-item">
+                        <span class="info-label">Ngày báo cáo:</span>
+                        <span class="info-value" id="printDate"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Số thành viên:</span>
+                        <span class="info-value" id="printMemberCount"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Tổng giao dịch:</span>
+                        <span class="info-value" id="printTransactionCount"></span>
+                    </div>
+                </div>
+            </div>
+            
             <div id="summaryTable"></div>
+            
+            <!-- Print Footer (only visible when printing) -->
+            <div class="print-footer">
+                <div class="print-summary-section">
+                    <h3>TỔNG KẾT TÀI CHÍNH</h3>
+                    <div class="summary-grid" id="printSummaryGrid"></div>
+                </div>
+                
+                <div class="print-members-section">
+                    <h3>CHI TIẾT THÀNH VIÊN</h3>
+                    <div id="printMemberDetails"></div>
+                </div>
+                
+                <div class="print-signatures">
+                    <div class="signature-box">
+                        <p class="signature-title">Người lập biểu</p>
+                        <div class="signature-line"></div>
+                        <p class="signature-name">(Ký và ghi rõ họ tên)</p>
+                    </div>
+                    <div class="signature-box">
+                        <p class="signature-title">Trưởng ban quản lý quỹ</p>
+                        <div class="signature-line"></div>
+                        <p class="signature-name">(Ký và ghi rõ họ tên)</p>
+                    </div>
+                </div>
+                
+                <div class="print-footer-note">
+                    <p>📄 Báo cáo được tạo tự động bởi Hệ thống Quản lý Quỹ Gia Đình</p>
+                    <p>📅 Ngày tạo: <span id="printDateTime"></span></p>
+                </div>
+            </div>
         </div>
 
         <div class="history-section">
