@@ -58,6 +58,7 @@ async function initApp() {
         updateWithdrawMemberSelect();
         updateContributeMemberSelect();
         updateMemberFilter();
+        renderDashboard();
     }
     
     updateSettings();
@@ -121,6 +122,7 @@ async function loadDataFromFirebase() {
             updateWithdrawMemberSelect();
             updateContributeMemberSelect();
             updateMemberFilter();
+            renderDashboard();
         } else {
             console.log('ℹ️ No Firebase data found, starting fresh');
         }
@@ -199,6 +201,7 @@ function addMember() {
     updateContributeMemberSelect();
     updateMemberFilter();
     renderSummary();
+    renderDashboard();
     showNotification(`Đã thêm thành viên ${name}!`, 'success');
 }
 
@@ -222,6 +225,7 @@ function removeMember(memberId) {
     updateMemberFilter();
     renderSummary();
     renderHistory();
+    renderDashboard();
     showNotification('Đã xóa thành viên!', 'success');
 }
 
@@ -336,6 +340,7 @@ function recordMonthlyContribution() {
     saveData();
     renderSummary();
     renderHistory();
+    renderDashboard();
     showNotification(`Đã ghi nhận góp vốn tháng ${monthInput} cho ${membersToProcess.length} thành viên!`, 'success');
 }
 
@@ -379,6 +384,7 @@ function recordWithdrawal() {
     const memberId = parseInt(document.getElementById('withdrawMember').value);
     const amount = parseInt(document.getElementById('withdrawAmount').value);
     const date = document.getElementById('withdrawDate').value;
+    const note = document.getElementById('withdrawNote').value.trim();
     
     if (!memberId) {
         showNotification('Vui lòng chọn thành viên!', 'error');
@@ -429,14 +435,16 @@ function recordWithdrawal() {
         amount: amount,
         date: date,
         month: date.slice(0, 7), // Thêm month theo định dạng YYYY-MM
-        note: `Rút vốn ${formatMoney(amount)}`
+        note: note || `Rút vốn ${formatMoney(amount)}`
     });
     
     document.getElementById('withdrawAmount').value = '';
+    document.getElementById('withdrawNote').value = '';
     
     saveData();
     renderSummary();
     renderHistory();
+    renderDashboard();
     showNotification(`Đã ghi nhận ${member.name} rút ${formatMoney(amount)}!`, 'success');
 }
 
@@ -984,6 +992,190 @@ function requireAuth(action) {
         return false;
     }
     return true;
+}
+
+// Dashboard Functions
+function renderDashboard() {
+    const container = document.getElementById('dashboardCards');
+    if (!container) return;
+    
+    // Tính toán thống kê
+    const stats = calculateDashboardStats();
+    
+    container.innerHTML = `
+        <div class="dashboard-card card-primary">
+            <div class="card-icon">👑</div>
+            <div class="card-content">
+                <div class="card-label">Đóng Góp Nhiều Nhất</div>
+                <div class="card-value">${stats.topContributor.name}</div>
+                <div class="card-detail">${formatMoney(stats.topContributor.amount)}</div>
+            </div>
+        </div>
+        <div class="dashboard-card card-warning">
+            <div class="card-icon">⚠️</div>
+            <div class="card-content">
+                <div class="card-label">Nợ Nhiều Nhất</div>
+                <div class="card-value">${stats.topDebtor.name}</div>
+                <div class="card-detail">${formatMoney(stats.topDebtor.debt)}</div>
+            </div>
+        </div>
+        <div class="dashboard-card card-success">
+            <div class="card-icon">✅</div>
+            <div class="card-content">
+                <div class="card-label">Đã Trả Nợ Nhiều Nhất</div>
+                <div class="card-value">${stats.topRepayer.name}</div>
+                <div class="card-detail">${formatMoney(stats.topRepayer.amount)}</div>
+            </div>
+        </div>
+        <div class="dashboard-card card-info">
+            <div class="card-icon">📅</div>
+            <div class="card-content">
+                <div class="card-label">Giao Dịch Gần Nhất</div>
+                <div class="card-value">${stats.lastTransaction.type}</div>
+                <div class="card-detail">${stats.lastTransaction.date}</div>
+            </div>
+        </div>
+    `;
+}
+
+function calculateDashboardStats() {
+    const memberStats = appData.members.map(member => {
+        const contributed = appData.transactions
+            .filter(t => t.memberId === member.id && (t.type === 'contribute' || t.type === 'repay'))
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        const withdrawn = appData.transactions
+            .filter(t => t.memberId === member.id && t.type === 'withdraw')
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        const repaid = appData.transactions
+            .filter(t => t.memberId === member.id && t.type === 'repay')
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        return {
+            name: member.name,
+            contributed,
+            withdrawn,
+            repaid,
+            debt: Math.max(0, withdrawn - repaid)
+        };
+    });
+    
+    const topContributor = memberStats.reduce((max, m) => 
+        m.contributed > max.amount ? { name: m.name, amount: m.contributed } : max,
+        { name: 'Chưa có', amount: 0 }
+    );
+    
+    const topDebtor = memberStats.reduce((max, m) => 
+        m.debt > max.debt ? { name: m.name, debt: m.debt } : max,
+        { name: 'Không có', debt: 0 }
+    );
+    
+    const topRepayer = memberStats.reduce((max, m) => 
+        m.repaid > max.amount ? { name: m.name, amount: m.repaid } : max,
+        { name: 'Chưa có', amount: 0 }
+    );
+    
+    const lastTx = appData.transactions.length > 0 
+        ? appData.transactions[appData.transactions.length - 1]
+        : null;
+    
+    const typeNames = {
+        contribute: 'Góp vốn',
+        withdraw: 'Rút vốn',
+        repay: 'Trả nợ'
+    };
+    
+    return {
+        topContributor,
+        topDebtor,
+        topRepayer,
+        lastTransaction: lastTx ? {
+            type: typeNames[lastTx.type] || lastTx.type,
+            date: formatDate(lastTx.date)
+        } : {
+            type: 'Chưa có',
+            date: ''
+        }
+    };
+}
+
+// Export to Excel
+function exportToExcel() {
+    if (!window.XLSX) {
+        showNotification('Đang tải thư viện Excel...', 'info');
+        return;
+    }
+    
+    // Tạo workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Sheet 1: Thông tin thành viên
+    const membersData = [
+        ['STT', 'Tên', 'Ngày Tham Gia', 'Tổng Góp', 'Tổng Rút', 'Tổng Trả Nợ', 'Còn Nợ'],
+        ...appData.members.map((member, idx) => {
+            const contributed = appData.transactions
+                .filter(t => t.memberId === member.id && t.type === 'contribute')
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            const withdrawn = appData.transactions
+                .filter(t => t.memberId === member.id && t.type === 'withdraw')
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            const repaid = appData.transactions
+                .filter(t => t.memberId === member.id && t.type === 'repay')
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            const debt = Math.max(0, withdrawn - repaid);
+            
+            return [
+                idx + 1,
+                member.name,
+                formatDate(member.joinDate),
+                contributed,
+                withdrawn,
+                repaid,
+                debt
+            ];
+        })
+    ];
+    
+    const ws1 = XLSX.utils.aoa_to_sheet(membersData);
+    XLSX.utils.book_append_sheet(wb, ws1, 'Thành Viên');
+    
+    // Sheet 2: Lịch sử giao dịch
+    const typeNames = {
+        contribute: 'Góp vốn',
+        withdraw: 'Rút vốn',
+        repay: 'Trả nợ'
+    };
+    
+    const txData = [
+        ['STT', 'Ngày', 'Thành Viên', 'Loại', 'Số Tiền', 'Ghi Chú'],
+        ...appData.transactions.map((tx, idx) => [
+            idx + 1,
+            formatDate(tx.date),
+            tx.memberName,
+            typeNames[tx.type] || tx.type,
+            tx.amount,
+            tx.note || ''
+        ])
+    ];
+    
+    const ws2 = XLSX.utils.aoa_to_sheet(txData);
+    XLSX.utils.book_append_sheet(wb, ws2, 'Giao Dịch');
+    
+    // Xuất file
+    const fileName = `BaoCaoGopVon_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    showNotification('Đã xuất báo cáo Excel!', 'success');
+}
+
+// Print PDF
+function printReport() {
+    window.print();
+    showNotification('Đang chuẩn bị in...', 'info');
 }
 
 // Khởi chạy ứng dụng khi trang load xong
