@@ -241,8 +241,11 @@ function renderMembers() {
         <div class="member-card">
             <button class="delete-btn" onclick="removeMember(${member.id})">×</button>
             <button class="edit-btn" onclick="editMemberName(${member.id})" title="Sửa tên">✏️</button>
-            <h4>${member.name}</h4>
-            <small>Tham gia: ${formatDate(member.joinDate)}</small>
+            <button class="edit-btn" onclick="editMemberJoinDate(${member.id})" title="Sửa ngày tham gia">📅</button>
+            <div>
+                <h4>${member.name}</h4>
+                <small>Tham gia: ${formatDate(member.joinDate)}</small>
+            </div>
         </div>
     `).join('');
 }
@@ -600,7 +603,7 @@ function renderSummary() {
             const withdrawAmount = withdraws.reduce((sum, t) => sum + t.amount, 0);
             withdrawTotal += withdrawAmount;
             
-            tableHTML += `<td class="amount-cell ${withdrawAmount > 0 ? 'negative' : ''}">${withdrawAmount > 0 ? formatMoney(withdrawAmount) : '- ₫'}</td>`;
+            tableHTML += `<td class="amount-cell ${withdrawAmount > 0 ? 'negative' : ''}">${withdrawAmount > 0 ? `- ${formatMoney(withdrawAmount)}` : '- ₫'}</td>`;
         });
         
         tableHTML += `</tr>`;
@@ -630,7 +633,7 @@ function renderSummary() {
             const debtRemaining = Math.max(0, withdrawn - repaid);
             totalDebtRemaining += debtRemaining;
             
-            tableHTML += `<td class="amount-cell ${debtRemaining > 0 ? 'negative' : 'balance-amount'}">${debtRemaining > 0 ? formatMoney(debtRemaining) : '- ₫'}</td>`;
+            tableHTML += `<td class="amount-cell ${debtRemaining > 0 ? 'negative' : 'balance-amount'}">${debtRemaining > 0 ? `- ${formatMoney(debtRemaining)}` : '- ₫'}</td>`;
         });
         
         tableHTML += `</tr>`;
@@ -761,6 +764,47 @@ function editMemberName(memberId) {
     renderSummary();
     renderHistory();
     showNotification('Đã cập nhật tên thành viên!', 'success');
+}
+
+// Hàm chỉnh sửa ngày tham gia của thành viên
+function editMemberJoinDate(memberId) {
+    if (!requireAuth()) return;
+    
+    const member = appData.members.find(m => m.id == memberId);
+    if (!member) {
+        alert('Không tìm thấy thành viên!');
+        return;
+    }
+    
+    // Lấy ngày hiện tại hoặc ngày tham gia hiện có (định dạng YYYY-MM-DD)
+    const currentDate = member.joinDate ? new Date(member.joinDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    
+    const newDate = prompt('Nhập ngày tham gia (định dạng: YYYY-MM-DD):', currentDate);
+    if (!newDate) return;
+    
+    // Kiểm tra định dạng ngày
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+        alert('Định dạng ngày không hợp lệ! Vui lòng nhập theo dạng YYYY-MM-DD');
+        return;
+    }
+    
+    // Kiểm tra xem có phải là ngày hợp lệ
+    const dateObj = new Date(newDate);
+    if (isNaN(dateObj.getTime())) {
+        alert('Ngày không hợp lệ!');
+        return;
+    }
+    
+    if (newDate === currentDate) return;
+    
+    // Cập nhật ngày tham gia
+    member.joinDate = newDate;
+    
+    saveData();
+    renderMembers();
+    renderSummary();
+    renderHistory();
+    showNotification(`Đã cập nhật ngày tham gia cho ${member.name}!`, 'success');
 }
 
 // Cập nhật dropdown lọc thành viên trong lịch sử
