@@ -7,6 +7,44 @@ let appData = {
     transactions: []
 };
 
+// Tiền trả nợ mặc định hằng tháng
+const DEFAULT_REPAY_AMOUNT = 200000;
+// Tiền vào quỹ mặc định (phần công vốn thực)
+const DEFAULT_CONTRIBUTE_AMOUNT = 200000;
+
+// Trạng thái thay đổi dữ liệu
+let hasChanges = false;
+
+// Đánh dấu dữ liệu có thay đổi và hiển thị nút lưu
+function markAsChanged() {
+    if (!hasChanges) {
+        hasChanges = true;
+        updateSaveButtonUI();
+    }
+}
+
+// Cập nhật giao diện nút lưu
+function updateSaveButtonUI() {
+    const saveBtn = document.getElementById('saveBtn');
+    const indicator = document.getElementById('unsavedIndicator');
+    
+    if (hasChanges) {
+        if (saveBtn) saveBtn.style.display = 'inline-block';
+        if (indicator) indicator.style.display = 'inline-block';
+    } else {
+        if (saveBtn) saveBtn.style.display = 'none';
+        if (indicator) indicator.style.display = 'none';
+    }
+}
+
+// Lưu tất cả thay đổi khi người dùng nhấn nút Lưu
+async function saveAllChanges() {
+    saveData();
+    hasChanges = false;
+    updateSaveButtonUI();
+    showNotification('✅ Đã lưu tất cả thay đổi!', 'success');
+}
+
 // Authentication
 const ADMIN_PASSWORD = '123456'; // Thay đổi mật khẩu này
 let isAuthenticated = false;
@@ -63,6 +101,7 @@ async function initApp() {
     
     updateSettings();
     updateUIBasedOnAuth();
+    updateSaveButtonUI();
 }
 
 // Lưu và tải dữ liệu từ Firebase
@@ -166,7 +205,7 @@ function updateSettings() {
     const monthlyAmount = parseInt(document.getElementById('monthlyAmount').value);
     appData.settings.monthlyAmount = monthlyAmount;
     if (typeof event !== 'undefined') {
-        saveData();
+        markAsChanged();
         showNotification('Đã cập nhật cài đặt!', 'success');
     }
 }
@@ -195,7 +234,7 @@ function addMember() {
     });
     
     nameInput.value = '';
-    saveData();
+    markAsChanged();
     renderMembers();
     updateWithdrawMemberSelect();
     updateContributeMemberSelect();
@@ -218,7 +257,7 @@ function removeMember(memberId) {
     appData.members = appData.members.filter(m => m.id !== memberId);
     appData.transactions = appData.transactions.filter(t => t.memberId !== memberId);
     
-    saveData();
+    markAsChanged();
     renderMembers();
     updateWithdrawMemberSelect();
     updateContributeMemberSelect();
@@ -310,45 +349,71 @@ function recordMonthlyContribution() {
     
     // Tạo giao dịch góp vốn cho các thành viên được chọn
     membersToProcess.forEach(member => {
-        // Giao dịch góp vốn cơ bản (luôn luôn có)
+        // Ghi nhận tiền vào quỹ (200k cố định là phần công vốn thực)
         appData.transactions.push({
             id: Date.now() + Math.random(),
             memberId: member.id,
             memberName: member.name,
             type: 'contribute',
-            amount: appData.settings.monthlyAmount,
+            amount: DEFAULT_CONTRIBUTE_AMOUNT,
             month: monthInput,
             date: new Date().toISOString(),
             note: `Góp vốn tháng ${monthInput}`
         });
         
-        // Tính số tiền phải trả nợ (nếu có)
-        const debt = calculateDebt(member.id, monthInput);
+        // Tính số tiền trả nợ (phần còn lại từ tổng góp sau khi trừ tiền vào quỹ)
+        const totalInput = appData.settings.monthlyAmount;
+        const repayAmount = Math.min(
+            totalInput - DEFAULT_CONTRIBUTE_AMOUNT, // Phần còn lại = 700k - 200k = 500k
+            getActualRemainingDebt(member.id, monthInput) // Nhưng không vượt quá nợ còn lại
+        );
         
-        // Nếu có nợ, tạo thêm giao dịch trả nợ
-        if (debt.additionalPayment > 0) {
+        // Nếu có nợ, ghi nhận trả nợ
+        if (repayAmount > 0) {
             appData.transactions.push({
                 id: Date.now() + Math.random() + 0.1,
                 memberId: member.id,
                 memberName: member.name,
                 type: 'repay',
-                amount: debt.additionalPayment,
+                amount: repayAmount,
                 month: monthInput,
                 date: new Date().toISOString(),
-                note: `Trả nợ ${formatMoney(debt.additionalPayment)}`
+                note: `Trả nợ ${formatMoney(repayAmount)}`
             });
         }
     });
     
-    saveData();
+    markAsChanged();
     renderSummary();
     renderHistory();
     renderDashboard();
     showNotification(`Đã ghi nhận góp vốn tháng ${monthInput} cho ${membersToProcess.length} thành viên!`, 'success');
 }
 
-// Tính số tiền phải trả nợ thêm trong tháng
-function calculateDebt(memberId, currentMonth) {
+// Lấy số tiền nợ còn lại của một thành viên đến tháng hiện tại
+function getActualRemainingDebt(memberId, currentMonth) {
+    // Tính tổng tiền đã rút và đã trả nợ đến tháng TRƯỚC tháng hiện tại
+    const transactions = appData.transactions.filter(t => {
+        if (t.memberId !== memberId) return false;
+        const txMonth = t.month || (t.date ? t.date.slice(0, 7) : null);
+        return txMonth && txMonth < currentMonth; // Chỉ lấy các tháng TRƯỚC
+    });
+    
+    let totalWithdrawn = 0;
+    let totalRepaid = 0;
+    
+    transactions.forEach(t => {
+        if (t.type === 'withdraw') totalWithdrawn += t.amount;
+        else if (t.type === 'repay') totalRepaid += t.amount;
+    });
+    
+    // Nợ còn lại = Tổng rút - Tổng đã trả
+    const remainingDebt = Math.max(0, totalWithdrawn - totalRepaid);
+    return remainingDebt;
+}
+
+// Tính số tiền trả nợ mặc định (200k hoặc ít hơn nếu nợ còn lại < 200k)
+function calculateDefaultDebt(memberId, currentMonth) {
     // Tính tổng tiền đã rút và đã trả nợ đến tháng TRƯỚC tháng hiện tại
     const transactions = appData.transactions.filter(t => {
         if (t.memberId !== memberId) return false;
@@ -367,17 +432,15 @@ function calculateDebt(memberId, currentMonth) {
     // Nợ còn lại = Tổng rút - Tổng đã trả
     const remainingDebt = totalWithdrawn - totalRepaid;
     
-    // Nếu không còn nợ, không cần trả thêm
+    // Nếu không còn nợ, không cần trả
     if (remainingDebt <= 0) {
-        return { additionalPayment: 0, remainingDebt: 0 };
+        return { repayAmount: 0, remainingDebt: 0 };
     }
     
-    const monthlyAmount = appData.settings.monthlyAmount;
+    // Số tiền trả = min(200k mặc định, nợ còn lại)
+    const repayAmount = Math.min(DEFAULT_REPAY_AMOUNT, remainingDebt);
     
-    // Số tiền phải trả thêm = min(nợ còn lại, số tiền góp hàng tháng)
-    const additionalPayment = Math.min(remainingDebt, monthlyAmount);
-    
-    return { additionalPayment, remainingDebt };
+    return { repayAmount, remainingDebt };
 }
 
 // Ghi nhận rút vốn
@@ -444,7 +507,7 @@ function recordWithdrawal() {
     document.getElementById('withdrawAmount').value = '';
     document.getElementById('withdrawNote').value = '';
     
-    saveData();
+    markAsChanged();
     renderSummary();
     renderHistory();
     renderDashboard();
@@ -756,7 +819,7 @@ function editMemberName(memberId) {
         }
     });
     
-    saveData();
+    markAsChanged();
     renderMembers();
     updateWithdrawMemberSelect();
     updateContributeMemberSelect();
@@ -800,7 +863,7 @@ function editMemberJoinDate(memberId) {
     // Cập nhật ngày tham gia
     member.joinDate = newDate;
     
-    saveData();
+    markAsChanged();
     renderMembers();
     renderSummary();
     renderHistory();
