@@ -97,7 +97,6 @@ async function initApp() {
         updateRepayMemberSelect();
         updateContributeMemberSelect();
         updateMemberFilter();
-        renderDashboard();
     }
     
     updateSettings();
@@ -326,10 +325,23 @@ function recordMonthlyContribution() {
     if (!requireAuth()) return;
     
     const monthInput = document.getElementById('contributeMonth').value;
-    const selectedMemberId = document.getElementById('contributeMember').value;
+    const allCheckbox = document.querySelector('.member-checkbox-all').checked;
+    const itemCheckboxes = document.querySelectorAll('.member-checkbox-item:checked');
     
     if (!monthInput) {
         showNotification('Vui lòng chọn tháng!', 'error');
+        return;
+    }
+    
+    let selectedMemberIds = [];
+    if (allCheckbox) {
+        selectedMemberIds = appData.members.map(m => m.id.toString());
+    } else {
+        selectedMemberIds = Array.from(itemCheckboxes).map(cb => cb.value);
+    }
+    
+    if (selectedMemberIds.length === 0) {
+        showNotification('Vui lòng chọn ít nhất một thành viên!', 'error');
         return;
     }
     
@@ -339,13 +351,7 @@ function recordMonthlyContribution() {
     }
     
     // Lọc danh sách thành viên cần ghi nhận
-    let membersToProcess = [];
-    if (selectedMemberId === 'all') {
-        membersToProcess = appData.members;
-    } else {
-        const member = appData.members.find(m => m.id == selectedMemberId);
-        if (member) membersToProcess = [member];
-    }
+    let membersToProcess = appData.members.filter(m => selectedMemberIds.includes(m.id.toString()));
     
     if (membersToProcess.length === 0) {
         showNotification('Không tìm thấy thành viên!', 'error');
@@ -626,19 +632,42 @@ function renderMemberBalances() {
     let html = '<div class="member-balances-grid">';
     
     appData.members.forEach(member => {
-        const summary = calculateMemberSummary(member.id);
-        const balance = summary.balance;
-        const balanceClass = balance >= 0 ? 'positive' : 'negative';
-        const borderColor = balance >= 0 ? '#28a745' : '#dc3545';
-        const statusText = balance >= 0 ? 'Còn lại' : 'Nợ';
+        // Tính 4 cột: tiền góp, tiền trả, tiền rút, còn lại
+        const memberContributed = appData.transactions
+            .filter(t => t.memberId === member.id && t.type === 'contribute')
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        const memberRepaid = appData.transactions
+            .filter(t => t.memberId === member.id && t.type === 'repay')
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        const memberWithdrawn = appData.transactions
+            .filter(t => t.memberId === member.id && t.type === 'withdraw')
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        const memberBalance = memberContributed + memberRepaid - memberWithdrawn;
+        const balanceClass = memberBalance >= 0 ? 'positive' : 'negative';
         
         html += `
-            <div class="member-balance-column">
-                <div class="balance-border" style="border-left: 5px solid ${borderColor};"></div>
-                <div class="balance-content ${balanceClass}">
-                    <div class="balance-name">${member.name}</div>
-                    <div class="balance-amount">${formatMoney(Math.abs(balance))}</div>
-                    <div class="balance-status">${statusText}</div>
+            <div class="member-balance-card ${balanceClass}">
+                <div class="member-balance-name">${member.name}</div>
+                <div class="member-stats-compact">
+                    <div class="stat-compact">
+                        <span class="stat-label-small">Góp</span>
+                        <span class="stat-value-small contributed">${formatMoney(memberContributed)}</span>
+                    </div>
+                    <div class="stat-compact">
+                        <span class="stat-label-small">Trả</span>
+                        <span class="stat-value-small repaid">${formatMoney(memberRepaid)}</span>
+                    </div>
+                    <div class="stat-compact">
+                        <span class="stat-label-small">Rút</span>
+                        <span class="stat-value-small withdrawn">${formatMoney(memberWithdrawn)}</span>
+                    </div>
+                    <div class="stat-compact">
+                        <span class="stat-label-small">Còn</span>
+                        <span class="stat-value-small ${balanceClass}">${memberBalance < 0 ? '-' : ''}${formatMoney(Math.abs(memberBalance))}</span>
+                    </div>
                 </div>
             </div>
         `;
@@ -874,9 +903,6 @@ function renderSummary() {
     `;
     
     container.innerHTML = tableHTML;
-    
-    // Render thống kê 4 cột
-    renderSummaryStats();
 }
 
 // Render lịch sử giao dịch
@@ -960,9 +986,35 @@ function updateRepayMemberSelect() {
 
 // Cập nhật dropdown chọn thành viên cho góp vốn
 function updateContributeMemberSelect() {
-    const select = document.getElementById('contributeMember');
-    select.innerHTML = '<option value="all">Tất cả thành viên</option>' + 
-        appData.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+    const container = document.getElementById('contributeMemberCheckboxes');
+    let html = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">';
+    
+    // "Tất cả" checkbox
+    html += `
+        <label class="member-checkbox-label">
+            <input type="checkbox" class="member-checkbox-all" value="all" onchange="toggleAllContributeMembers()">
+            <span class="member-checkbox-name">Tất cả</span>
+        </label>
+    `;
+    
+    // Individual member checkboxes
+    appData.members.forEach(m => {
+        html += `
+            <label class="member-checkbox-label">
+                <input type="checkbox" class="member-checkbox-item" value="${m.id}" data-name="${m.name}">
+                <span class="member-checkbox-name">${m.name}</span>
+            </label>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function toggleAllContributeMembers() {
+    const allCheckbox = document.querySelector('.member-checkbox-all');
+    const itemCheckboxes = document.querySelectorAll('.member-checkbox-item');
+    itemCheckboxes.forEach(cb => cb.checked = allCheckbox.checked);
 }
 
 // Sửa tên thành viên

@@ -668,17 +668,15 @@ h3 {
 
 /* Form */
 .form-row {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
     align-items: flex-end;
 }
 
 .form-row .form-group {
     flex: 1;
-    min-width: 180px;
-    max-width: 300px;
 }
 
 .input-with-label {
@@ -704,12 +702,11 @@ h3 {
 
 @media (max-width: 768px) {
     .form-row {
-        flex-direction: column;
-        gap: 14px;
+        grid-template-columns: 1fr;
+        gap: 12px;
     }
     
     .form-row .form-group {
-        max-width: 100%;
         width: 100%;
     }
     
@@ -754,6 +751,91 @@ h3 {
     border-color: #667eea;
     box-shadow: 0 0 0 5px rgba(102, 126, 234, 0.12);
     transform: translateY(-2px);
+}
+
+select[multiple].input-field {
+    padding: 8px;
+    min-height: 75px;
+    overflow-y: auto;
+}
+
+select[multiple].input-field option {
+    padding: 8px 5px;
+    background: white;
+    color: #333;
+    line-height: 1.5;
+}
+
+select[multiple].input-field option:checked {
+    background: linear-gradient(#667eea, #667eea);
+    background-color: #667eea;
+    color: white;
+}
+
+/* Member Checkboxes */
+.member-checkboxes-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.member-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.member-checkbox-label:hover {
+    border-color: #667eea;
+    background: #f8f9fa;
+}
+
+.member-checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    appearance: none;
+    border: 2px solid #d0d0d0;
+    border-radius: 4px;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.member-checkbox-label input[type="checkbox"]:hover {
+    border-color: #667eea;
+}
+
+.member-checkbox-label input[type="checkbox"]:checked {
+    background: #667eea;
+    border-color: #667eea;
+}
+
+.member-checkbox-label input[type="checkbox"]:checked::after {
+    content: '✓';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+.member-checkbox-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.member-checkbox-label input[type="checkbox"]:checked + .member-checkbox-name {
+    color: #667eea;
+    font-weight: 600;
 }
 
 @media (max-width: 768px) {
@@ -975,64 +1057,103 @@ h3 {
 
 .member-balances-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+    gap: 16px;
     margin-bottom: 20px;
 }
 
-.member-balance-column {
-    display: flex;
+.member-balance-card {
     background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border-radius: 10px;
+    padding: 13px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    border-top: 4px solid #667eea;
+    border-left: 4px solid #667eea;
     transition: all 0.3s ease;
-    overflow: hidden;
-    min-height: 120px;
-}
-
-.member-balance-column:hover {
-    box-shadow: 0 4px 15px rgba(0,0,0,0.10);
-}
-
-.balance-content {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 15px 12px;
+    min-height: 135px;
+    justify-content: space-between;
+}
+
+.member-balance-card:hover {
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+}
+
+.member-balance-card.positive {
+    border-top-color: #28a745;
+    border-left-color: #28a745;
+}
+
+.member-balance-card.negative {
+    border-top-color: #dc3545;
+    border-left-color: #dc3545;
+}
+
+.member-balance-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin-bottom: 9px;
     text-align: center;
+    word-break: break-word;
+    padding: 6px 0;
+    border-bottom: 1.5px solid #f0f0f0;
+    text-transform: capitalize;
+    letter-spacing: 0.3px;
 }
 
-.balance-name {
-    font-size: 13px;
-    color: #666;
-    margin-bottom: 8px;
-    font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+.member-stats-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
 }
 
-.balance-amount {
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 5px;
+.stat-compact {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 12px;
+    border-bottom: 0.8px solid #e8e8e8;
 }
 
-.balance-status {
+.stat-compact:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.stat-label-small {
+    color: #777;
+    font-weight: 600;
     font-size: 11px;
-    color: #999;
-    font-weight: 500;
+    letter-spacing: 0.2px;
 }
 
-.balance-content.positive .balance-amount {
+.stat-value-small {
+    font-weight: 700;
+    color: #333;
+    font-size: 13px;
+}
+
+.stat-value-small.contributed {
     color: #28a745;
 }
 
-.balance-content.negative .balance-amount {
+.stat-value-small.repaid {
+    color: #667eea;
+}
+
+.stat-value-small.withdrawn {
+    color: #dc3545;
+}
+
+.stat-value-small.positive {
+    color: #28a745;
+}
+
+.stat-value-small.negative {
     color: #dc3545;
 }
 
@@ -1045,7 +1166,32 @@ h3 {
     
     .member-balances-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 10px;
+        gap: 12px;
+    }
+    
+    .member-balance-card {
+        padding: 10px;
+        min-height: 120px;
+    }
+    
+    .member-balance-name {
+        font-size: 13px;
+        margin-bottom: 6px;
+        padding: 4px 0;
+    }
+    
+    .stat-compact {
+        padding: 3px 0;
+        font-size: 11px;
+        gap: 6px;
+    }
+    
+    .stat-label-small {
+        font-size: 11px;
+    }
+    
+    .stat-value-small {
+        font-size: 13px;
     }
     
     .fund-card {
