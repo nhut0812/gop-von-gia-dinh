@@ -9,8 +9,6 @@ let appData = {
 
 // Tiền trả nợ mặc định hằng tháng
 const DEFAULT_REPAY_AMOUNT = 200000;
-// Tiền vào quỹ mặc định (phần công vốn thực)
-const DEFAULT_CONTRIBUTE_AMOUNT = 200000;
 
 // Trạng thái thay đổi dữ liệu
 let hasChanges = false;
@@ -83,6 +81,7 @@ async function initApp() {
     const today = new Date();
     document.getElementById('contributeMonth').value = today.toISOString().slice(0, 7);
     document.getElementById('withdrawDate').value = today.toISOString().slice(0, 10);
+    document.getElementById('repayDate').value = today.toISOString().slice(0, 10);
     
     // Load dữ liệu từ Firebase trước
     if (useFirebase) {
@@ -92,8 +91,10 @@ async function initApp() {
         // Render giao diện nếu dùng localStorage
         renderMembers();
         renderSummary();
+        renderMemberBalances();
         renderHistory();
         updateWithdrawMemberSelect();
+        updateRepayMemberSelect();
         updateContributeMemberSelect();
         updateMemberFilter();
         renderDashboard();
@@ -102,6 +103,23 @@ async function initApp() {
     updateSettings();
     updateUIBasedOnAuth();
     updateSaveButtonUI();
+    
+    // Format hiển thị tiền tệ khi load trang
+    formatAllCurrencyInputs();
+}
+
+// Format hiển thị tất cả input tiền tệ
+function formatAllCurrencyInputs() {
+    const currencyInputIds = ['monthlyAmount', 'repayAmount', 'withdrawAmount'];
+    currencyInputIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element && element.value) {
+            let value = element.value.replace(/\D/g, '');
+            if (value) {
+                element.value = parseInt(value).toLocaleString('vi-VN');
+            }
+        }
+    });
 }
 
 // Lưu và tải dữ liệu từ Firebase
@@ -157,8 +175,10 @@ async function loadDataFromFirebase() {
             // Render giao diện sau khi load xong
             renderMembers();
             renderSummary();
+            renderMemberBalances();
             renderHistory();
             updateWithdrawMemberSelect();
+            updateRepayMemberSelect();
             updateContributeMemberSelect();
             updateMemberFilter();
             renderDashboard();
@@ -202,7 +222,7 @@ function updateSettings() {
     // Chỉ kiểm tra auth khi được gọi từ button click (có event)
     if (typeof event !== 'undefined' && !requireAuth()) return;
     
-    const monthlyAmount = parseInt(document.getElementById('monthlyAmount').value);
+    const monthlyAmount = getCurrencyValue('monthlyAmount');
     appData.settings.monthlyAmount = monthlyAmount;
     if (typeof event !== 'undefined') {
         markAsChanged();
@@ -237,6 +257,7 @@ function addMember() {
     markAsChanged();
     renderMembers();
     updateWithdrawMemberSelect();
+    updateRepayMemberSelect();
     updateContributeMemberSelect();
     updateMemberFilter();
     renderSummary();
@@ -260,9 +281,11 @@ function removeMember(memberId) {
     markAsChanged();
     renderMembers();
     updateWithdrawMemberSelect();
+    updateRepayMemberSelect();
     updateContributeMemberSelect();
     updateMemberFilter();
     renderSummary();
+    renderMemberBalances();
     renderHistory();
     renderDashboard();
     showNotification('Đã xóa thành viên!', 'success');
@@ -349,42 +372,22 @@ function recordMonthlyContribution() {
     
     // Tạo giao dịch góp vốn cho các thành viên được chọn
     membersToProcess.forEach(member => {
-        // Ghi nhận tiền vào quỹ (200k cố định là phần công vốn thực)
+        // Ghi nhận tiền góp theo cài đặt
         appData.transactions.push({
             id: Date.now() + Math.random(),
             memberId: member.id,
             memberName: member.name,
             type: 'contribute',
-            amount: DEFAULT_CONTRIBUTE_AMOUNT,
+            amount: appData.settings.monthlyAmount,
             month: monthInput,
             date: new Date().toISOString(),
             note: `Góp vốn tháng ${monthInput}`
         });
-        
-        // Tính số tiền trả nợ (phần còn lại từ tổng góp sau khi trừ tiền vào quỹ)
-        const totalInput = appData.settings.monthlyAmount;
-        const repayAmount = Math.min(
-            totalInput - DEFAULT_CONTRIBUTE_AMOUNT, // Phần còn lại = 700k - 200k = 500k
-            getActualRemainingDebt(member.id, monthInput) // Nhưng không vượt quá nợ còn lại
-        );
-        
-        // Nếu có nợ, ghi nhận trả nợ
-        if (repayAmount > 0) {
-            appData.transactions.push({
-                id: Date.now() + Math.random() + 0.1,
-                memberId: member.id,
-                memberName: member.name,
-                type: 'repay',
-                amount: repayAmount,
-                month: monthInput,
-                date: new Date().toISOString(),
-                note: `Trả nợ ${formatMoney(repayAmount)}`
-            });
-        }
     });
     
     markAsChanged();
     renderSummary();
+    renderMemberBalances();
     renderHistory();
     renderDashboard();
     showNotification(`Đã ghi nhận góp vốn tháng ${monthInput} cho ${membersToProcess.length} thành viên!`, 'success');
@@ -448,7 +451,7 @@ function recordWithdrawal() {
     if (!requireAuth()) return;
     
     const memberId = parseInt(document.getElementById('withdrawMember').value);
-    const amount = parseInt(document.getElementById('withdrawAmount').value);
+    const amount = getCurrencyValue('withdrawAmount');
     const date = document.getElementById('withdrawDate').value;
     const note = document.getElementById('withdrawNote').value.trim();
     
@@ -509,9 +512,74 @@ function recordWithdrawal() {
     
     markAsChanged();
     renderSummary();
+    renderMemberBalances();
     renderHistory();
     renderDashboard();
     showNotification(`Đã ghi nhận ${member.name} rút ${formatMoney(amount)}!`, 'success');
+}
+
+// Ghi nhận trả nợ
+function recordRepayment() {
+    if (!requireAuth()) return;
+    
+    const memberId = parseInt(document.getElementById('repayMember').value);
+    const amount = getCurrencyValue('repayAmount');
+    const date = document.getElementById('repayDate').value;
+    const note = document.getElementById('repayNote').value.trim();
+    
+    if (!memberId) {
+        showNotification('Vui lòng chọn thành viên!', 'error');
+        return;
+    }
+    
+    if (!amount || amount <= 0) {
+        showNotification('Vui lòng nhập số tiền trả hợp lệ!', 'error');
+        return;
+    }
+    
+    if (!date) {
+        showNotification('Vui lòng chọn ngày trả!', 'error');
+        return;
+    }
+    
+    const member = appData.members.find(m => m.id === memberId);
+    
+    // Kiểm tra số nợ còn lại
+    const remainingDebt = getActualRemainingDebt(memberId, date.slice(0, 7));
+    
+    if (remainingDebt <= 0) {
+        showNotification(`${member.name} không có nợ!`, 'error');
+        return;
+    }
+    
+    if (amount > remainingDebt) {
+        showNotification(
+            `${member.name} chỉ nợ ${formatMoney(remainingDebt)}. Số tiền trả không được vượt quá nợ!`, 
+            'error'
+        );
+        return;
+    }
+    
+    appData.transactions.push({
+        id: Date.now(),
+        memberId: memberId,
+        memberName: member.name,
+        type: 'repay',
+        amount: amount,
+        date: date,
+        month: date.slice(0, 7),
+        note: note || `Trả nợ ${formatMoney(amount)}`
+    });
+    
+    document.getElementById('repayAmount').value = '';
+    document.getElementById('repayNote').value = '';
+    
+    markAsChanged();
+    renderSummary();
+    renderMemberBalances();
+    renderHistory();
+    renderDashboard();
+    showNotification(`Đã ghi nhận ${member.name} trả nợ ${formatMoney(amount)}!`, 'success');
 }
 
 // Tính toán tổng hợp cho từng thành viên
@@ -544,6 +612,85 @@ function calculateMemberSummary(memberId) {
         balance,
         transactionCount: transactions.length
     };
+}
+
+// Render thẻ hiển thị tổng tiền từng thành viên
+function renderMemberBalances() {
+    const container = document.getElementById('memberBalances');
+    
+    if (appData.members.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let html = '<div class="member-balances-grid">';
+    
+    appData.members.forEach(member => {
+        const summary = calculateMemberSummary(member.id);
+        const balance = summary.balance;
+        const balanceClass = balance >= 0 ? 'positive' : 'negative';
+        const borderColor = balance >= 0 ? '#28a745' : '#dc3545';
+        const statusText = balance >= 0 ? 'Còn lại' : 'Nợ';
+        
+        html += `
+            <div class="member-balance-column">
+                <div class="balance-border" style="border-left: 5px solid ${borderColor};"></div>
+                <div class="balance-content ${balanceClass}">
+                    <div class="balance-name">${member.name}</div>
+                    <div class="balance-amount">${formatMoney(Math.abs(balance))}</div>
+                    <div class="balance-status">${statusText}</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Render thống kê 4 cột tóm tắt
+function renderSummaryStats() {
+    const container = document.getElementById('summaryStats');
+    
+    // Tính tổng tiền từng loại
+    const totalContributed = appData.transactions
+        .filter(t => t.type === 'contribute')
+        .reduce((sum, t) => sum + t.amount, 0);
+    
+    const totalRepaid = appData.transactions
+        .filter(t => t.type === 'repay')
+        .reduce((sum, t) => sum + t.amount, 0);
+    
+    const totalWithdrawn = appData.transactions
+        .filter(t => t.type === 'withdraw')
+        .reduce((sum, t) => sum + t.amount, 0);
+    
+    const remaining = totalContributed + totalRepaid - totalWithdrawn;
+    
+    const html = `
+        <div class="summary-stat-card stat-contribute">
+            <div class="stat-icon">💰</div>
+            <div class="stat-label">Tiền Góp</div>
+            <div class="stat-amount">${formatMoney(totalContributed)}</div>
+        </div>
+        <div class="summary-stat-card stat-repay">
+            <div class="stat-icon">↩️</div>
+            <div class="stat-label">Tiền Trả</div>
+            <div class="stat-amount">${formatMoney(totalRepaid)}</div>
+        </div>
+        <div class="summary-stat-card stat-withdraw">
+            <div class="stat-icon">💸</div>
+            <div class="stat-label">Tiền Rút</div>
+            <div class="stat-amount">${formatMoney(totalWithdrawn)}</div>
+        </div>
+        <div class="summary-stat-card stat-remaining">
+            <div class="stat-icon">${remaining >= 0 ? '✅' : '⚠️'}</div>
+            <div class="stat-label">Còn Lại</div>
+            <div class="stat-amount">${formatMoney(remaining)}</div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
 }
 
 // Render bảng tổng hợp
@@ -601,19 +748,23 @@ function renderSummary() {
     months.forEach((month, index) => {
         const monthLabel = `Tháng ${index + 1}`;
         
-        // Tính tổng tiền của tháng này (góp - rút)
+        // Tính tổng tiền của tháng này (góp + trả - rút)
         let monthContributeTotal = 0;
+        let monthRepayTotal = 0;
         let monthWithdrawTotal = 0;
         
         appData.members.forEach(member => {
-            // Tiền góp + trả nợ
+            // Tiền góp (chỉ góp, không cộng trả nợ)
             const contribute = appData.transactions.find(t => 
                 t.memberId === member.id && t.month === month && t.type === 'contribute'
             );
+            monthContributeTotal += contribute?.amount || 0;
+            
+            // Tiền trả nợ
             const repay = appData.transactions.find(t => 
                 t.memberId === member.id && t.month === month && t.type === 'repay'
             );
-            monthContributeTotal += (contribute?.amount || 0) + (repay?.amount || 0);
+            monthRepayTotal += repay?.amount || 0;
             
             // Tiền rút
             const withdraws = appData.transactions.filter(t => {
@@ -624,34 +775,48 @@ function renderSummary() {
             monthWithdrawTotal += withdraws.reduce((sum, t) => sum + t.amount, 0);
         });
         
-        const monthTotal = monthContributeTotal - monthWithdrawTotal;
+        const monthTotal = monthContributeTotal + monthRepayTotal - monthWithdrawTotal;
         
-        // Dòng 1: Tiền góp
+        // Dòng 1: Tiền góp (chỉ góp)
         let contributeTotal = 0;
         tableHTML += `
             <tr class="month-row">
-                <td rowspan="3" class="month-cell">${monthLabel}</td>
+                <td rowspan="4" class="month-cell">${monthLabel}</td>
                 <td class="action-cell contribute-cell">Tiền góp</td>
         `;
         
         appData.members.forEach(member => {
-            // Tính tiền góp + tiền trả nợ của tháng này
+            // Tính tiền góp của tháng này (chỉ contribute, không có repay)
             const contribute = appData.transactions.find(t => 
                 t.memberId === member.id && t.month === month && t.type === 'contribute'
             );
+            
+            const amount = contribute?.amount || 0;
+            contributeTotal += amount;
+            
+            tableHTML += `<td class="amount-cell positive">${formatMoney(amount)}</td>`;
+        });
+        
+        tableHTML += `<td rowspan="4" class="total-cell month-total ${monthTotal >= 0 ? 'positive' : 'negative'}">${formatMoney(monthTotal)}</td></tr>`;
+        
+        // Dòng 2: Tiền trả nợ
+        let repayTotal = 0;
+        tableHTML += `<tr class="month-row"><td class="action-cell repay-cell">Tiền trả</td>`;
+        
+        appData.members.forEach(member => {
             const repay = appData.transactions.find(t => 
                 t.memberId === member.id && t.month === month && t.type === 'repay'
             );
             
-            const totalAmount = (contribute?.amount || 0) + (repay?.amount || 0);
-            contributeTotal += totalAmount;
+            const amount = repay?.amount || 0;
+            repayTotal += amount;
             
-            tableHTML += `<td class="amount-cell positive">${formatMoney(totalAmount)}</td>`;
+            tableHTML += `<td class="amount-cell ${amount > 0 ? 'positive' : ''}">${formatMoney(amount)}</td>`;
         });
         
-        tableHTML += `<td rowspan="3" class="total-cell month-total ${monthTotal >= 0 ? 'positive' : 'negative'}">${formatMoney(monthTotal)}</td></tr>`;
+        tableHTML += `</tr>`;
         
-        // Dòng 2: Tiền rút
+        // Dòng 3: Tiền rút
         let withdrawTotal = 0;
         tableHTML += `<tr class="month-row"><td class="action-cell withdraw-cell">Tiền rút</td>`;
         
@@ -671,7 +836,7 @@ function renderSummary() {
         
         tableHTML += `</tr>`;
         
-        // Dòng 3: Còn lại (số tiền nợ còn phải trả)
+        // Dòng 4: Còn lại (số tiền nợ còn phải trả)
         tableHTML += `<tr class="month-row balance-row"><td class="action-cell balance-cell">Còn lại</td>`;
         
         let totalDebtRemaining = 0;
@@ -709,6 +874,9 @@ function renderSummary() {
     `;
     
     container.innerHTML = tableHTML;
+    
+    // Render thống kê 4 cột
+    renderSummaryStats();
 }
 
 // Render lịch sử giao dịch
@@ -783,6 +951,13 @@ function updateWithdrawMemberSelect() {
         appData.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
 }
 
+// Cập nhật dropdown chọn thành viên cho trả nợ
+function updateRepayMemberSelect() {
+    const select = document.getElementById('repayMember');
+    select.innerHTML = '<option value="">-- Chọn thành viên --</option>' + 
+        appData.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+}
+
 // Cập nhật dropdown chọn thành viên cho góp vốn
 function updateContributeMemberSelect() {
     const select = document.getElementById('contributeMember');
@@ -823,8 +998,10 @@ function editMemberName(memberId) {
     renderMembers();
     updateWithdrawMemberSelect();
     updateContributeMemberSelect();
+    updateRepayMemberSelect();
     updateMemberFilter();
     renderSummary();
+    renderMemberBalances();
     renderHistory();
     showNotification('Đã cập nhật tên thành viên!', 'success');
 }
@@ -866,7 +1043,9 @@ function editMemberJoinDate(memberId) {
     markAsChanged();
     renderMembers();
     renderSummary();
+    renderMemberBalances();
     renderHistory();
+    updateRepayMemberSelect();
     showNotification(`Đã cập nhật ngày tham gia cho ${member.name}!`, 'success');
 }
 
@@ -929,6 +1108,21 @@ function resetData() {
             showNotification('Đã reset tất cả dữ liệu!', 'success');
         }
     }
+}
+
+// Hàm format input tiền tệ realtime
+function formatCurrencyInput(event) {
+    let value = event.target.value.replace(/\D/g, '');
+    if (value) {
+        value = parseInt(value).toLocaleString('vi-VN');
+    }
+    event.target.value = value;
+}
+
+// Lấy giá trị số nguyên từ input (bỏ dấu phân cách)
+function getCurrencyValue(inputId) {
+    const value = document.getElementById(inputId).value;
+    return parseInt(value.replace(/\D/g, '')) || 0;
 }
 
 // Hàm format tiền tệ

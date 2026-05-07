@@ -42,7 +42,7 @@
             <div class="settings-form">
                 <label>
                     Số tiền góp mỗi tháng:
-                    <input type="number" id="monthlyAmount" value="200000" min="0" step="1000">
+                    <input type="text" id="monthlyAmount" value="200000" min="0" step="1000" oninput="formatCurrencyInput(event)">
                     <span>VNĐ</span>
                 </label>
                 <button onclick="updateSettings()" class="btn btn-primary">Cập nhật</button>
@@ -62,6 +62,7 @@
             <h2>📝 Ghi Nhận Giao Dịch</h2>
             <div class="action-tabs">
                 <button class="tab-btn active" onclick="switchTab('contribute')">Góp Vốn</button>
+                <button class="tab-btn" onclick="switchTab('repay')">Trả Nợ</button>
                 <button class="tab-btn" onclick="switchTab('withdraw')">Rút Vốn</button>
             </div>
 
@@ -82,8 +83,33 @@
                         <button onclick="recordMonthlyContribution()" class="btn btn-primary" style="width: 100%;">Ghi Nhận Góp Vốn</button>
                     </div>
                 </div>
-                <div class="info-box">
-                    <small>Sẽ ghi nhận số tiền góp theo cài đặt (và trả nợ nếu có)</small>
+            </div>
+
+            <div id="repayTab" class="tab-content">
+                <h3>Ghi nhận trả nợ</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Chọn thành viên:</label>
+                        <select id="repayMember" class="input-field"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Số tiền trả:</label>
+                        <div class="input-with-label">
+                            <input type="text" id="repayAmount" class="input-field" min="0" step="1000" placeholder="Nhập số tiền" oninput="formatCurrencyInput(event)">
+                            <span class="unit-label">VNĐ</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ngày trả:</label>
+                        <input type="date" id="repayDate" class="input-field">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>Ghi chú (tùy chọn):</label>
+                    <textarea id="repayNote" class="input-field" placeholder="Ghi chú trả nợ..." rows="2" style="resize: vertical;"></textarea>
+                </div>
+                <div style="text-align: center; margin-top: 15px;">
+                    <button onclick="recordRepayment()" class="btn btn-success">Ghi Nhận Trả Nợ</button>
                 </div>
             </div>
 
@@ -97,7 +123,7 @@
                     <div class="form-group">
                         <label>Số tiền rút:</label>
                         <div class="input-with-label">
-                            <input type="number" id="withdrawAmount" class="input-field" min="0" step="1000" placeholder="Nhập số tiền">
+                            <input type="text" id="withdrawAmount" class="input-field" min="0" step="1000" placeholder="Nhập số tiền" oninput="formatCurrencyInput(event)">
                             <span class="unit-label">VNĐ</span>
                         </div>
                     </div>
@@ -116,8 +142,16 @@
             </div>
         </div>
 
+        <div class="balances-section">
+            <h2>👤 Số Dư Từng Thành Viên</h2>
+            <div id="memberBalances" class="member-balances-section"></div>
+        </div>
+
         <div class="summary-section">
             <h2>📊 Tổng Hợp Tình Hình</h2>
+            
+            <div id="summaryStats" class="summary-stats-grid" style="margin-bottom: 25px;"></div>
+            
             <div class="export-buttons" style="margin-bottom: 15px; text-align: right;">
                 <button onclick="exportToExcel()" class="btn btn-success" style="padding: 8px 16px; font-size: 0.9em;">📥 Xuất Excel</button>
                 <button onclick="printReport()" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.9em;">🖨️ In PDF</button>
@@ -145,6 +179,8 @@
                     </div>
                 </div>
             </div>
+            
+            <div id="memberBalances" class="member-balances-section"></div>
             
             <div id="summaryTable"></div>
             

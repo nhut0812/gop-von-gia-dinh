@@ -109,7 +109,8 @@ header h1 {
 .actions-section,
 .summary-section,
 .history-section,
-.dashboard-section {
+.dashboard-section,
+.balances-section {
     padding: 20px 25px;
     background: white;
     margin: 15px;
@@ -124,7 +125,8 @@ header h1 {
 .actions-section:hover,
 .summary-section:hover,
 .history-section:hover,
-.dashboard-section:hover {
+.dashboard-section:hover,
+.balances-section:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 35px rgba(0,0,0,0.12);
 }
@@ -135,7 +137,8 @@ header h1 {
     .actions-section,
     .summary-section,
     .history-section,
-    .dashboard-section {
+    .dashboard-section,
+    .balances-section {
         padding: 16px 14px;
         margin: 10px 8px;
         border-radius: 14px;
@@ -146,7 +149,8 @@ header h1 {
     .actions-section:hover,
     .summary-section:hover,
     .history-section:hover,
-    .dashboard-section:hover {
+    .dashboard-section:hover,
+    .balances-section:hover {
         transform: none;
     }
 }
@@ -881,11 +885,167 @@ h3 {
     font-style: italic;
 }
 
+/* Summary Stats Grid */
+.summary-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+}
+
+.summary-stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+}
+
+.summary-stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+}
+
+.summary-stat-card.stat-contribute {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.summary-stat-card.stat-repay {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.summary-stat-card.stat-withdraw {
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+}
+
+.summary-stat-card.stat-remaining {
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+}
+
+.stat-icon {
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.stat-label {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.9;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.stat-amount {
+    font-size: 22px;
+    font-weight: 700;
+    word-break: break-word;
+}
+
+@media (max-width: 768px) {
+    .summary-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .summary-stat-card {
+        padding: 18px;
+    }
+    
+    .stat-icon {
+        font-size: 24px;
+    }
+    
+    .stat-amount {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .summary-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+.member-balances-section {
+    margin: 0;
+}
+
+.member-balances-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.member-balance-column {
+    display: flex;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    min-height: 120px;
+}
+
+.member-balance-column:hover {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.10);
+}
+
+.balance-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 15px 12px;
+    text-align: center;
+}
+
+.balance-name {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 8px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.balance-amount {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.balance-status {
+    font-size: 11px;
+    color: #999;
+    font-weight: 500;
+}
+
+.balance-content.positive .balance-amount {
+    color: #28a745;
+}
+
+.balance-content.negative .balance-amount {
+    color: #dc3545;
+}
+
 @media (max-width: 768px) {
     .fund-summary {
         grid-template-columns: 1fr;
         gap: 12px;
         margin-bottom: 15px;
+    }
+    
+    .member-balances-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
     }
     
     .fund-card {
@@ -1069,6 +1229,11 @@ h3 {
 .contribute-cell {
     background: #e7f3ff;
     color: #084298;
+}
+
+.repay-cell {
+    background: #d4edda;
+    color: #155724;
 }
 
 .withdraw-cell {
