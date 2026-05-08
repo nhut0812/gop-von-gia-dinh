@@ -93,6 +93,7 @@ async function initApp() {
         renderSummary();
         renderMemberBalances();
         renderHistory();
+        renderDashboard();
         updateWithdrawMemberSelect();
         updateRepayMemberSelect();
         updateContributeMemberSelect();
@@ -1355,8 +1356,8 @@ function renderDashboard() {
         <div class="fund-card total-withdrawn">
             <div class="fund-icon">💸</div>
             <div class="fund-label">Tổng Tiền Đã Rút</div>
-            <div class="fund-amount">${debtRemaining > 0 ? formatMoney(debtRemaining) : '0 ₫'}</div>
-            <div class="fund-note">${debtRemaining > 0 ? 'Còn nợ chưa trả' : 'Đã trả hết nợ'}</div>
+            <div class="fund-amount">${formatMoney(debtRemaining)}</div>
+            <div class="fund-note">Đã trừ tiền đã trả nợ</div>
         </div>
         <div class="fund-card actual-money">
             <div class="fund-icon">🏦</div>
