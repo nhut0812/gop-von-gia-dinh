@@ -400,56 +400,70 @@ function recordMonthlyContribution() {
     showNotification(`Đã ghi nhận góp vốn tháng ${monthInput} cho ${membersToProcess.length} thành viên!`, 'success');
 }
 
+function getDebtBalanceByMonth(memberId, currentMonth, { includeCurrentMonth = false } = {}) {
+    const transactions = appData.transactions
+        .filter(t => {
+            if (t.memberId !== memberId) return false;
+            if (t.type !== 'withdraw' && t.type !== 'repay') return false;
+            const txMonth = t.month || (t.date ? t.date.slice(0, 7) : null);
+            if (!txMonth) return false;
+            return includeCurrentMonth ? txMonth <= currentMonth : txMonth < currentMonth;
+        })
+        .sort((a, b) => {
+            const dateA = a.date ? new Date(a.date).getTime() : new Date(`${a.month || currentMonth}-01`).getTime();
+            const dateB = b.date ? new Date(b.date).getTime() : new Date(`${b.month || currentMonth}-01`).getTime();
+            return dateA - dateB;
+        });
+
+    let debtBalance = 0;
+    transactions.forEach(t => {
+        if (t.type === 'withdraw') {
+            debtBalance += t.amount;
+        } else if (t.type === 'repay') {
+            debtBalance = Math.max(0, debtBalance - t.amount);
+        }
+    });
+
+    return debtBalance;
+}
+
+function getDebtBalanceByDate(memberId, targetDate) {
+    const transactions = appData.transactions
+        .filter(t => {
+            if (t.memberId !== memberId) return false;
+            if (t.type !== 'withdraw' && t.type !== 'repay') return false;
+            if (!t.date) return false;
+            return new Date(t.date) <= new Date(targetDate);
+        })
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let debtBalance = 0;
+    transactions.forEach(t => {
+        if (t.type === 'withdraw') debtBalance += t.amount;
+        else if (t.type === 'repay') debtBalance = Math.max(0, debtBalance - t.amount);
+    });
+
+    return debtBalance;
+}
+
 // Lấy số tiền nợ còn lại của một thành viên đến tháng hiện tại
 function getActualRemainingDebt(memberId, currentMonth) {
-    // Tính tổng tiền đã rút và đã trả nợ đến tháng TRƯỚC tháng hiện tại
-    const transactions = appData.transactions.filter(t => {
-        if (t.memberId !== memberId) return false;
-        const txMonth = t.month || (t.date ? t.date.slice(0, 7) : null);
-        return txMonth && txMonth < currentMonth; // Chỉ lấy các tháng TRƯỚC
-    });
-    
-    let totalWithdrawn = 0;
-    let totalRepaid = 0;
-    
-    transactions.forEach(t => {
-        if (t.type === 'withdraw') totalWithdrawn += t.amount;
-        else if (t.type === 'repay') totalRepaid += t.amount;
-    });
-    
-    // Nợ còn lại = Tổng rút - Tổng đã trả
-    const remainingDebt = Math.max(0, totalWithdrawn - totalRepaid);
-    return remainingDebt;
+    const monthEnd = `${currentMonth}-31`;
+    return getDebtBalanceByDate(memberId, monthEnd);
 }
 
 // Tính số tiền trả nợ mặc định (200k hoặc ít hơn nếu nợ còn lại < 200k)
 function calculateDefaultDebt(memberId, currentMonth) {
-    // Tính tổng tiền đã rút và đã trả nợ đến tháng TRƯỚC tháng hiện tại
-    const transactions = appData.transactions.filter(t => {
-        if (t.memberId !== memberId) return false;
-        const txMonth = t.month || (t.date ? t.date.slice(0, 7) : null);
-        return txMonth && txMonth < currentMonth; // Chỉ lấy các tháng TRƯỚC
-    });
-    
-    let totalWithdrawn = 0;
-    let totalRepaid = 0;
-    
-    transactions.forEach(t => {
-        if (t.type === 'withdraw') totalWithdrawn += t.amount;
-        else if (t.type === 'repay') totalRepaid += t.amount;
-    });
-    
-    // Nợ còn lại = Tổng rút - Tổng đã trả
-    const remainingDebt = totalWithdrawn - totalRepaid;
-    
+    const remainingDebt = getActualRemainingDebt(memberId, currentMonth);
+
     // Nếu không còn nợ, không cần trả
     if (remainingDebt <= 0) {
         return { repayAmount: 0, remainingDebt: 0 };
     }
-    
+
     // Số tiền trả = min(200k mặc định, nợ còn lại)
     const repayAmount = Math.min(DEFAULT_REPAY_AMOUNT, remainingDebt);
-    
+
     return { repayAmount, remainingDebt };
 }
 
@@ -591,33 +605,61 @@ function recordRepayment() {
 
 // Tính toán tổng hợp cho từng thành viên
 function calculateMemberSummary(memberId) {
-    const transactions = appData.transactions.filter(t => t.memberId === memberId);
+    const transactions = appData.transactions
+        .filter(t => t.memberId === memberId)
+        .sort((a, b) => new Date(a.date || `${a.month}-01`) - new Date(b.date || `${b.month}-01`));
     
     let totalContributed = 0;
-    let totalWithdrawn = 0;
+    let runningDebt = 0;
     let totalRepaid = 0;
     
     transactions.forEach(t => {
         if (t.type === 'contribute') {
             totalContributed += t.amount;
         } else if (t.type === 'withdraw') {
-            totalWithdrawn += t.amount;
+            runningDebt += t.amount;
         } else if (t.type === 'repay') {
+            runningDebt = Math.max(0, runningDebt - t.amount);
             totalRepaid += t.amount;
         }
     });
     
-    // Nợ còn lại = Tổng rút - Tổng đã trả
-    const remainingDebt = totalWithdrawn - totalRepaid;
-    
-    // Số dư = Tổng góp - Nợ còn lại
+    const remainingDebt = runningDebt;
     const balance = totalContributed - remainingDebt;
     
     return {
         totalContributed,
-        totalWithdrawn: remainingDebt, // Hiển thị nợ còn lại thay vì tổng rút
+        totalWithdrawn: remainingDebt,
         balance,
         transactionCount: transactions.length
+    };
+}
+
+function getActiveDebtCycle(memberId) {
+    const transactions = appData.transactions
+        .filter(t => t.memberId === memberId && (t.type === 'withdraw' || t.type === 'repay'))
+        .sort((a, b) => new Date(a.date || `${a.month}-01`) - new Date(b.date || `${b.month}-01`));
+
+    let cycleWithdraw = 0;
+    let cycleRepay = 0;
+
+    transactions.forEach(t => {
+        if (t.type === 'withdraw') {
+            cycleWithdraw += t.amount;
+        } else if (t.type === 'repay') {
+            cycleRepay += t.amount;
+            if (cycleRepay >= cycleWithdraw) {
+                cycleWithdraw = 0;
+                cycleRepay = 0;
+            }
+        }
+    });
+
+    return {
+        cycleWithdraw,
+        cycleRepay,
+        activeDebt: cycleWithdraw - cycleRepay,
+        isActive: cycleWithdraw > cycleRepay
     };
 }
 
@@ -633,7 +675,6 @@ function renderMemberBalances() {
     let html = '<div class="member-balances-grid">';
     
     appData.members.forEach(member => {
-        // Tính 4 cột: tiền góp, tiền trả, tiền rút, còn lại
         const memberContributed = appData.transactions
             .filter(t => t.memberId === member.id && t.type === 'contribute')
             .reduce((sum, t) => sum + t.amount, 0);
@@ -646,9 +687,17 @@ function renderMemberBalances() {
             .filter(t => t.memberId === member.id && t.type === 'withdraw')
             .reduce((sum, t) => sum + t.amount, 0);
         
-        const memberBalance = memberContributed + memberRepaid - memberWithdrawn;
-        const balanceClass = memberBalance >= 0 ? 'positive' : 'negative';
-        
+        const activeDebt = getActiveDebtCycle(member.id);
+        const currentDebt = activeDebt.activeDebt;
+        const currentCash = memberContributed + memberRepaid - memberWithdrawn;
+
+        // Giữ nguyên số rút cho đến khi trả đủ, sau đó reset về 0.
+        const effectiveWithdrawn = currentDebt > 0 ? (activeDebt.cycleWithdraw || memberWithdrawn) : 0;
+        const effectiveRepaid = currentDebt > 0 ? (activeDebt.cycleRepay || 0) : 0;
+        const memberBalance = currentDebt > 0 ? currentDebt : currentCash;
+        const balanceClass = currentDebt > 0 ? 'negative' : 'positive';
+        const displayValue = currentDebt > 0 ? `-${formatMoney(memberBalance)}` : formatMoney(memberBalance);
+
         html += `
             <div class="member-balance-card ${balanceClass}">
                 <div class="member-balance-name">${member.name}</div>
@@ -659,15 +708,15 @@ function renderMemberBalances() {
                     </div>
                     <div class="stat-compact">
                         <span class="stat-label-small">Trả</span>
-                        <span class="stat-value-small repaid">${formatMoney(memberRepaid)}</span>
+                        <span class="stat-value-small repaid">${formatMoney(effectiveRepaid)}</span>
                     </div>
                     <div class="stat-compact">
                         <span class="stat-label-small">Rút</span>
-                        <span class="stat-value-small withdrawn">${formatMoney(memberWithdrawn)}</span>
+                        <span class="stat-value-small withdrawn">${formatMoney(effectiveWithdrawn)}</span>
                     </div>
                     <div class="stat-compact">
                         <span class="stat-label-small">Còn</span>
-                        <span class="stat-value-small ${balanceClass}">${memberBalance < 0 ? '-' : ''}${formatMoney(Math.abs(memberBalance))}</span>
+                        <span class="stat-value-small ${balanceClass}">${displayValue}</span>
                     </div>
                 </div>
             </div>
@@ -785,16 +834,16 @@ function renderSummary() {
         
         appData.members.forEach(member => {
             // Tiền góp (chỉ góp, không cộng trả nợ)
-            const contribute = appData.transactions.find(t => 
+            const contributes = appData.transactions.filter(t => 
                 t.memberId === member.id && t.month === month && t.type === 'contribute'
             );
-            monthContributeTotal += contribute?.amount || 0;
+            monthContributeTotal += contributes.reduce((sum, t) => sum + t.amount, 0);
             
-            // Tiền trả nợ
-            const repay = appData.transactions.find(t => 
+            // Tiền trả nợ: cộng dồn tất cả giao dịch trả trong cùng tháng
+            const repays = appData.transactions.filter(t => 
                 t.memberId === member.id && t.month === month && t.type === 'repay'
             );
-            monthRepayTotal += repay?.amount || 0;
+            monthRepayTotal += repays.reduce((sum, t) => sum + t.amount, 0);
             
             // Tiền rút
             const withdraws = appData.transactions.filter(t => {
@@ -834,11 +883,11 @@ function renderSummary() {
         tableHTML += `<tr class="month-row"><td class="action-cell repay-cell">Tiền trả</td>`;
         
         appData.members.forEach(member => {
-            const repay = appData.transactions.find(t => 
+            const repays = appData.transactions.filter(t => 
                 t.memberId === member.id && t.month === month && t.type === 'repay'
             );
             
-            const amount = repay?.amount || 0;
+            const amount = repays.reduce((sum, t) => sum + t.amount, 0);
             repayTotal += amount;
             
             tableHTML += `<td class="amount-cell ${amount > 0 ? 'positive' : ''}">${formatMoney(amount)}</td>`;
@@ -871,24 +920,9 @@ function renderSummary() {
         
         let totalDebtRemaining = 0;
         appData.members.forEach(member => {
-            // Tính toán số tiền nợ còn lại đến tháng này
-            const memberTransactions = appData.transactions.filter(t => {
-                if (t.memberId !== member.id) return false;
-                // Lấy month từ trường month hoặc tính từ date
-                const txMonth = t.month || (t.date ? t.date.slice(0, 7) : null);
-                return txMonth && txMonth <= month;
-            });
-            
-            let withdrawn = 0;
-            let repaid = 0;
-            
-            memberTransactions.forEach(t => {
-                if (t.type === 'withdraw') withdrawn += t.amount;
-                else if (t.type === 'repay') repaid += t.amount;
-            });
-            
-            // Nợ còn lại = Tổng rút - Tổng đã trả
-            const debtRemaining = Math.max(0, withdrawn - repaid);
+            // Tính toán số tiền nợ còn lại đến tháng này theo đúng thứ tự thời gian 
+            // để các giao dịch trong cùng tháng không bị tính sai và không tạo nợ bù vào tháng sau.
+            const debtRemaining = getDebtBalanceByMonth(member.id, month, { includeCurrentMonth: true });
             totalDebtRemaining += debtRemaining;
             
             tableHTML += `<td class="amount-cell ${debtRemaining > 0 ? 'negative' : 'balance-amount'}">${debtRemaining > 0 ? `- ${formatMoney(debtRemaining)}` : '- ₫'}</td>`;
@@ -904,6 +938,90 @@ function renderSummary() {
     `;
     
     container.innerHTML = tableHTML;
+}
+
+function removeTransaction(transactionId) {
+    if (!requireAuth()) return;
+
+    const transaction = appData.transactions.find(t => t.id === transactionId);
+    if (!transaction) {
+        showNotification('Không tìm thấy giao dịch cần xóa!', 'error');
+        return;
+    }
+
+    const labelMap = {
+        contribute: 'góp vốn',
+        withdraw: 'rút vốn',
+        repay: 'trả nợ'
+    };
+
+    const confirmDelete = confirm(`Bạn có chắc muốn xóa giao dịch ${labelMap[transaction.type] || 'giao dịch'} của ${transaction.memberName} (${formatMoney(transaction.amount)})?`);
+    if (!confirmDelete) return;
+
+    appData.transactions = appData.transactions.filter(t => t.id !== transactionId);
+
+    markAsChanged();
+    renderSummary();
+    renderMemberBalances();
+    renderHistory();
+    renderDashboard();
+    showNotification('Đã xóa giao dịch thành công!', 'success');
+}
+
+function editTransaction(transactionId) {
+    if (!requireAuth()) return;
+
+    const transaction = appData.transactions.find(t => t.id === transactionId);
+    if (!transaction) {
+        showNotification('Không tìm thấy giao dịch cần sửa!', 'error');
+        return;
+    }
+
+    const validTypes = ['contribute', 'withdraw', 'repay'];
+    const newTypeInput = prompt('Loại giao dịch mới (contribute / withdraw / repay):', transaction.type);
+    if (newTypeInput === null) return;
+
+    const newType = newTypeInput.trim().toLowerCase();
+    if (!validTypes.includes(newType)) {
+        showNotification('Loại giao dịch không hợp lệ!', 'error');
+        return;
+    }
+
+    const newAmountInput = prompt('Số tiền mới:', transaction.amount);
+    if (newAmountInput === null) return;
+
+    const newAmount = Number(String(newAmountInput).replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(newAmount) || newAmount <= 0) {
+        showNotification('Số tiền không hợp lệ!', 'error');
+        return;
+    }
+
+    const newDate = prompt('Ngày giao dịch mới (YYYY-MM-DD):', transaction.date || new Date().toISOString().slice(0, 10));
+    if (newDate === null || !newDate.trim()) {
+        showNotification('Ngày giao dịch không được để trống!', 'error');
+        return;
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate.trim())) {
+        showNotification('Ngày không đúng định dạng YYYY-MM-DD!', 'error');
+        return;
+    }
+
+    const newNote = prompt('Ghi chú mới:', transaction.note || '');
+    if (newNote === null) return;
+
+    transaction.type = newType;
+    transaction.amount = Math.round(newAmount);
+    transaction.date = newDate.trim();
+    transaction.month = newDate.trim().slice(0, 7);
+    transaction.note = newNote.trim() || `${newType === 'withdraw' ? 'Rút vốn' : newType === 'repay' ? 'Trả nợ' : 'Góp vốn'} ${formatMoney(Math.round(newAmount))}`;
+
+    markAsChanged();
+    renderSummary();
+    renderMemberBalances();
+    renderHistory();
+    renderDashboard();
+    showNotification('Đã cập nhật giao dịch thành công!', 'success');
 }
 
 // Render lịch sử giao dịch
@@ -952,20 +1070,28 @@ function renderHistory() {
         
         return `
             <div class="history-item ${t.type}">
-                <div class="history-header">
-                    <span class="history-type ${t.type}">
-                        ${icon} ${label}
-                    </span>
-                    <span>${formatDate(t.date)}</span>
+                <div class="history-item-top">
+                    <div class="history-main">
+                        <div class="history-header">
+                            <span class="history-type ${t.type}">
+                                ${icon} ${label}
+                            </span>
+                            <span>${formatDate(t.date)}</span>
+                        </div>
+                        <div class="history-details">
+                            <strong>${t.memberName}</strong>
+                            ${t.month ? ` - Tháng ${t.month}` : ''}
+                        </div>
+                        <div class="history-amount ${colorClass}">
+                            ${sign} ${formatMoney(t.amount)}
+                        </div>
+                        ${t.note ? `<div style="color: #666; font-size: 0.9em; margin-top: 5px;">${t.note}</div>` : ''}
+                    </div>
+                    <div class="history-actions">
+                        <button class="history-action-btn edit" onclick="editTransaction(${t.id})">✏️ Sửa</button>
+                        <button class="history-action-btn delete" onclick="removeTransaction(${t.id})">🗑️ Xóa</button>
+                    </div>
                 </div>
-                <div class="history-details">
-                    <strong>${t.memberName}</strong>
-                    ${t.month ? ` - Tháng ${t.month}` : ''}
-                </div>
-                <div class="history-amount ${colorClass}">
-                    ${sign} ${formatMoney(t.amount)}
-                </div>
-                ${t.note ? `<div style="color: #666; font-size: 0.9em; margin-top: 5px;">${t.note}</div>` : ''}
             </div>
         `;
     }).join('');
